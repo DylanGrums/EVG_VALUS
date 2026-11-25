@@ -1,0 +1,10 @@
+{
+  "name": "carnet-evg",
+  "private": true,
+  "type": "module",
+  "engines": {"node": ">=24"},
+  "scripts": {
+    "build": "node build.mjs",
+    "start": "node local.mjs"
+  }
+}

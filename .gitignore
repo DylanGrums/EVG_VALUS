@@ -1,0 +1,5 @@
+dist/
+outputs/
+.evg-data/
+.env*
+!.env.example
