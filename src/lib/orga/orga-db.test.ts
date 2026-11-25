@@ -51,6 +51,7 @@ describe("participants", () => {
     const sam = await registerSelf(db, " Sam ");
     expect(sam.name).toBe("Sam");
     await expect(registerSelf(db, "sam")).rejects.toBeInstanceOf(NameTakenError);
+    await expect(registerSelf(db, "sam")).rejects.toMatchObject({ existing: { id: sam.id, name: "Sam" } });
     await expect(registerSelf(db, "   ")).rejects.toBeInstanceOf(OrgaError);
     // Un prénom ajouté par un orga est aussi « pris » : la personne doit le choisir dans la liste.
     await addParticipant(db, "Léo");

@@ -3,6 +3,7 @@
 /**
  * Identification des membres par prénom.
  * - Premier passage : la personne entre son prénom (inscription).
+ * - Prénom déjà pris : fenêtre « C'est toi ? » → reprendre (questionnaire ou orga) ou ajouter une initiale.
  * - « J'ai déjà renseigné mon prénom » : elle le choisit dans la liste.
  * - Le prénom choisi est mémorisé dans le localStorage : au retour (cookie perdu, autre navigateur
  *   du même téléphone…), on la reconnaît automatiquement.
@@ -42,6 +43,10 @@ export function IdentityPicker({ people, currentId, autoRestore }: { people: Per
   const router = useRouter();
   const [mode, setMode] = useState<"nouveau" | "liste">(currentId ? "liste" : "nouveau");
   const [restoring, setRestoring] = useState<string | null>(null);
+  const [conflict, setConflict] = useState<Person | null>(null);
+  const [name, setName] = useState("");
+  const [resuming, setResuming] = useState(false);
+  const nameInput = useRef<HTMLInputElement>(null);
   const tried = useRef(false);
 
   function finish(state: IdentityState, target = "/orga") {
@@ -54,7 +59,11 @@ export function IdentityPicker({ people, currentId, autoRestore }: { people: Per
   }
 
   const [registerState, register, registering] = useActionState(
-    async (prev: IdentityState, form: FormData) => finish(await registerAction(prev, form), "/orga/bienvenue"),
+    async (prev: IdentityState, form: FormData) => {
+      const state = await registerAction(prev, form);
+      if (state && !state.ok && state.taken) setConflict(state.taken);
+      return finish(state, "/orga/bienvenue");
+    },
     undefined,
   );
   const [chooseState, choose, choosing] = useActionState(
@@ -76,6 +85,30 @@ export function IdentityPicker({ people, currentId, autoRestore }: { people: Per
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoRestore, people]);
+
+  /** « C'est moi » : on reprend la fiche existante, puis questionnaire ou orga. */
+  async function resumeAs(target: "/questionnaire" | "/orga") {
+    if (!conflict) return;
+    setResuming(true);
+    const state = await restoreParticipantAction(conflict.id);
+    setResuming(false);
+    if (state?.ok) {
+      setConflict(null);
+      finish(state, target);
+    }
+  }
+
+  /** « Ce n'est pas moi » : on garde le prénom et on place le curseur pour ajouter une initiale. */
+  function addInitial() {
+    if (!conflict) return;
+    setName(`${conflict.name} `);
+    setConflict(null);
+    requestAnimationFrame(() => {
+      const input = nameInput.current;
+      input?.focus();
+      input?.setSelectionRange(input.value.length, input.value.length);
+    });
+  }
 
   if (restoring) {
     return <p className="rounded-xl bg-brand-light p-4 font-semibold text-brand">Content de te revoir, {restoring} ! 👋</p>;
@@ -105,15 +138,29 @@ export function IdentityPicker({ people, currentId, autoRestore }: { people: Per
       {mode === "nouveau" ? (
         <form action={register} className="space-y-3">
           <Field label="Ton prénom" hint="Il apparaîtra sur tes votes et tes commentaires.">
-            <Input name="name" required maxLength={40} autoComplete="given-name" autoFocus placeholder="Ex. Thomas" />
+            <Input
+              ref={nameInput}
+              name="name"
+              required
+              maxLength={40}
+              autoComplete="given-name"
+              autoFocus
+              placeholder="Ex. Thomas"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
           </Field>
           {registerState && !registerState.ok && (
             <div className="space-y-2 text-sm text-danger">
-              <p>{registerState.error}</p>
-              {registerState.taken && (
-                <button type="button" className="font-semibold text-brand underline" onClick={() => setMode("liste")}>
-                  Voir la liste des prénoms
-                </button>
+              {registerState.taken ? (
+                <p>
+                  « {registerState.taken.name} » est déjà inscrit.{" "}
+                  <button type="button" className="font-semibold text-brand underline" onClick={() => setConflict(registerState.taken ?? null)}>
+                    C’est toi ?
+                  </button>
+                </p>
+              ) : (
+                <p>{registerState.error}</p>
               )}
             </div>
           )}
@@ -149,6 +196,75 @@ export function IdentityPicker({ people, currentId, autoRestore }: { people: Per
           {chooseState && !chooseState.ok && <p className="text-sm text-danger">{chooseState.error}</p>}
         </form>
       )}
+
+      {conflict && (
+        <NameTakenDialog
+          name={conflict.name}
+          busy={resuming}
+          onResume={resumeAs}
+          onAddInitial={addInitial}
+          onClose={() => setConflict(null)}
+        />
+      )}
     </div>
+  );
+}
+
+/** Fenêtre affichée quand le prénom saisi est déjà dans la liste. */
+function NameTakenDialog({
+  name,
+  busy,
+  onResume,
+  onAddInitial,
+  onClose,
+}: {
+  name: string;
+  busy: boolean;
+  onResume: (target: "/questionnaire" | "/orga") => void;
+  onAddInitial: () => void;
+  onClose: () => void;
+}) {
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const dialog = ref.current;
+    if (dialog && !dialog.open) dialog.showModal();
+  }, []);
+
+  return (
+    <dialog
+      ref={ref}
+      onClose={onClose}
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+      aria-labelledby="name-taken-title"
+      className="m-auto w-[min(28rem,calc(100%-2rem))] rounded-3xl bg-panel p-0 text-ink shadow-xl backdrop:bg-night/60"
+    >
+      <div className="space-y-5 p-6">
+        <div className="space-y-1">
+          <h2 id="name-taken-title" className="text-2xl">
+            « {name} » est déjà inscrit
+          </h2>
+          <p className="text-muted">C’est toi ? Reprends là où tu en étais. Sinon, ajoute l’initiale de ton nom.</p>
+        </div>
+
+        <div className="space-y-2">
+          <p className="text-xs font-extrabold uppercase tracking-widest text-brand">C’est moi, {name}</p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <Button type="button" disabled={busy} onClick={() => onResume("/questionnaire")}>
+              📝 Reprendre le questionnaire
+            </Button>
+            <Button type="button" variant="secondary" disabled={busy} onClick={() => onResume("/orga")}>
+              🗳️ Aller sur l’orga
+            </Button>
+          </div>
+        </div>
+
+        <div className="space-y-2 border-t border-line pt-4">
+          <p className="text-xs font-extrabold uppercase tracking-widest text-muted">Ce n’est pas moi</p>
+          <Button type="button" variant="ghost" disabled={busy} onClick={onAddInitial} className="w-full">
+            Ajouter une initiale (ex. « {name} B. »)
+          </Button>
+        </div>
+      </div>
+    </dialog>
   );
 }

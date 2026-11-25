@@ -59,7 +59,11 @@ export async function addParticipant(db: DB, name: string) {
 
 /** Le prénom est déjà pris par un participant actif (inscription par la personne elle-même). */
 export class NameTakenError extends OrgaError {
-  constructor(name: string) {
+  constructor(
+    name: string,
+    /** Fiche déjà inscrite sous ce prénom : proposée dans la fenêtre « C'est toi ? ». */
+    readonly existing?: { id: string; name: string },
+  ) {
     super(`« ${name} » est déjà inscrit. Si c’est toi, choisis « J’ai déjà renseigné mon prénom ». Sinon, ajoute l’initiale de ton nom (ex. « ${name} B. »).`);
     this.name = "NameTakenError";
   }
@@ -73,10 +77,10 @@ export class NameTakenError extends OrgaError {
 export async function registerSelf(db: DB, name: string) {
   const clean = parseName(name);
   const [taken] = await db
-    .select({ name: participants.name })
+    .select({ id: participants.id, name: participants.name })
     .from(participants)
     .where(and(eq(participants.active, true), sql`lower(${participants.name}) = lower(${clean})`));
-  if (taken) throw new NameTakenError(taken.name);
+  if (taken) throw new NameTakenError(taken.name, taken);
   const [row] = await db.insert(participants).values({ name: clean }).returning();
   return row;
 }

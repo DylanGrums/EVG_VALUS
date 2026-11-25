@@ -22,7 +22,7 @@ function refresh() {
 /** Résultat d'une action d'identification : le client mémorise ce prénom dans le localStorage. */
 export type IdentityState =
   | { ok: true; participant: { id: string; name: string } }
-  | { ok?: false; error: string; taken?: boolean }
+  | { ok?: false; error: string; taken?: { id: string; name: string } }
   | undefined;
 
 async function identify(id: unknown): Promise<IdentityState> {
@@ -55,7 +55,7 @@ export async function registerAction(_: IdentityState, form: FormData): Promise<
     revalidatePath("/admin/participants");
     return { ok: true, participant: { id: participant.id, name: participant.name } };
   } catch (error) {
-    if (error instanceof NameTakenError) return { error: error.message, taken: true };
+    if (error instanceof NameTakenError) return { error: error.message, taken: error.existing };
     if (error instanceof OrgaError) return { error: error.message };
     throw error;
   }
