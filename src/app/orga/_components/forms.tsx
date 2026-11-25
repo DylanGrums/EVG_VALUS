@@ -87,7 +87,7 @@ export function ConfirmButton({ message, disabled, ...props }: ComponentProps<ty
   );
 }
 
-/** Copie un texte dans le presse-papiers (lien secret). */
+/** Copie un texte dans le presse-papiers (lien du groupe). */
 export function CopyButton({ text, label = "Copier le lien" }: { text: string; label?: string }) {
   const [copied, setCopied] = useState(false);
   return (

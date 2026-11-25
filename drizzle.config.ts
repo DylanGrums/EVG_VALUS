@@ -6,7 +6,7 @@ const url = process.env.DATABASE_URL;
 // Sur Vercel, sans base Neon connectée, on échoue tout de suite avec un message clair
 // (sinon le build passerait et le site planterait en ligne).
 if (process.env.VERCEL) {
-  const missing = ["DATABASE_URL", "SESSION_SECRET", "ADMIN_PASSWORD", "GROUP_ACCESS_CODE"].filter((k) => !process.env[k]);
+  const missing = ["DATABASE_URL", "SESSION_SECRET", "ADMIN_PASSWORD"].filter((k) => !process.env[k]);
   if (missing.length) {
     throw new Error(
       `Variables manquantes sur Vercel : ${missing.join(", ")}. ` +

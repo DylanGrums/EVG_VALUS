@@ -63,14 +63,14 @@ La date (mai 2027) est déjà connue : pas de sondage de dates prévu.
 
 ## Accès et rôles
 
-- **Participants** : lien secret partagé dans le groupe. Au premier passage, chacun **entre son prénom**
+- **Participants** : lien `/orga` partagé dans le groupe, sans code d'accès (décidé le 2026-11-26 : Valentin n'aura pas le lien). Au premier passage, chacun **entre son prénom**
   (il s'ajoute à la liste ; un prénom déjà pris est refusé avec renvoi vers la liste). Sinon, bouton
   « J'ai déjà renseigné mon prénom » → choix dans la liste. Le prénom est mémorisé (cookie signé + localStorage) :
   au retour, la personne est reconnue automatiquement. Les admins peuvent aussi ajouter/renommer/retirer des prénoms.
   Pas de mot de passe individuel.
 - **Organisateurs** (moi + co-orgas) : accès admin protégé (gestion des sujets, clôture des votes,
   validation, gestion du questionnaire).
-- **Répondants au questionnaire** : lien distinct, ouvert, sans liste.
+- **Répondants au questionnaire** : lien `/questionnaire`, ouvert, sans liste.
 - **Valentin** : aucun accès (voir règle d'or).
 - Le site ne doit pas être indexé (noindex).
 

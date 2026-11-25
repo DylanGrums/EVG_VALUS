@@ -8,10 +8,9 @@ import { getMember, isAdmin } from "@/lib/session";
 import { OrgaError } from "./errors";
 import { getActiveParticipant } from "./participants";
 
-/** Membre courant : `member` = a utilisé le lien secret ; `participant` = prénom choisi et toujours actif. */
+/** Membre courant : `participant` = prénom choisi et toujours actif. */
 export async function currentMember() {
   const member = await getMember();
-  if (!member) return { member: null, participant: null };
   const participant = await getActiveParticipant(await getDb(), member.participantId);
   return { member, participant };
 }
@@ -19,7 +18,7 @@ export async function currentMember() {
 /** Pour les server actions des membres : renvoie le participant de la session ou lève une erreur. */
 export async function requireParticipant() {
   const { participant } = await currentMember();
-  if (!participant) throw new OrgaError("Session expirée : rouvre le lien du groupe et choisis ton prénom.");
+  if (!participant) throw new OrgaError("Session expirée : choisis ton prénom sur /orga.");
   return participant;
 }
 
@@ -30,11 +29,10 @@ export async function requireAdmin() {
 
 /**
  * Pour les pages /orga/** (le layout ne suffit pas : chaque page revérifie).
- * Sans lien secret → page neutre ; lien OK mais prénom non choisi (ou retiré) → « Qui es-tu ? ».
+ * Prénom non choisi (ou retiré) → « Qui es-tu ? ».
  */
 export async function requireMemberPage() {
-  const { member, participant } = await currentMember();
-  if (!member) redirect("/rejoindre");
+  const { participant } = await currentMember();
   if (!participant) redirect("/orga/qui-es-tu");
   return participant;
 }

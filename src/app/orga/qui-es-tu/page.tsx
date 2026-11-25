@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
 import { getDb } from "@/db";
 import { Card, Shell, SiteHeader } from "@/components/ui";
 import { currentMember } from "@/lib/orga/auth";
@@ -8,10 +7,9 @@ import { IdentityPicker } from "../_components/identity";
 
 export const metadata: Metadata = { title: "Qui es-tu ?" };
 
-/** Identification (premier passage, retour, ou changement de prénom). Exige d'être entré par le lien secret. */
+/** Identification (premier passage, retour, ou changement de prénom). */
 export default async function QuiEsTu() {
-  const { member, participant } = await currentMember();
-  if (!member) redirect("/rejoindre");
+  const { participant } = await currentMember();
   const people = (await listParticipants(await getDb())).map((p) => ({ id: p.id, name: p.name }));
 
   return (

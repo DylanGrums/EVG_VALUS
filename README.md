@@ -9,11 +9,10 @@ Stack : Next.js 16 (App Router, TypeScript), Tailwind v4, Drizzle ORM, Postgres 
 | Adresse | Pour qui |
 | --- | --- |
 | `/questionnaire` | Questionnaire « profil de Val » : lien direct à envoyer aux proches (`/` y redirige) |
-| `/rejoindre/<GROUP_ACCESS_CODE>` | Lien secret du groupe EVG : à partager uniquement aux participants. Premier passage : prénom, puis « répondre au questionnaire » ou « passer » |
-| `/orga` | Espace des participants (votes, propositions, commentaires, carnet sur place) |
+| `/orga` | Espace des participants, à partager uniquement dans leur groupe. Premier passage : prénom, puis « répondre au questionnaire » ou « passer ». Votes, propositions, commentaires, carnet sur place |
 | `/admin` | Espace organisateurs (mot de passe `ADMIN_PASSWORD`) |
 
-Ne jamais envoyer le lien `/rejoindre/...` à quelqu'un qui pourrait le montrer à Valentin.
+L'orga n'a pas de code d'accès : ne jamais envoyer le lien `/orga` à quelqu'un qui pourrait le montrer à Valentin. Les anciens liens `/rejoindre/...` redirigent vers `/orga`.
 
 ## Développement local
 
@@ -31,7 +30,7 @@ Puis ouvrir http://localhost:3000. Sans `.env.local`, tout fonctionne avec des v
 
 - base PGlite (Postgres embarqué) dans `.data/pglite`, migrations appliquées automatiquement au démarrage ;
 - mot de passe admin : `organisateur-local` ;
-- lien du groupe : http://localhost:3000/rejoindre/local
+- espace des participants : http://localhost:3000/orga
 
 Pour personnaliser, copier `.env.example` en `.env.local`.
 
@@ -57,22 +56,19 @@ Pour repartir d'une base locale vide : arrêter le serveur et supprimer le dossi
    Les fonctions tournent aussi à Francfort (`vercel.json` → `fra1`), à côté de la base.
 4. **Variables d'environnement** (*Settings → Environment Variables*, cocher Production et Preview) :
    - `SESSION_SECRET` : secret aléatoire (commande ci-dessous) ;
-   - `ADMIN_PASSWORD` : mot de passe des organisateurs, à transmettre aux co-orgas ;
-   - `GROUP_ACCESS_CODE` : code du lien secret du groupe (commande ci-dessous).
+   - `ADMIN_PASSWORD` : mot de passe des organisateurs, à transmettre aux co-orgas
+     (pour le changer : `scripts/changer-mdp-admin.ps1`, puis redéployer).
 5. **Déployer** : *Deployments → Redeploy* (ou un `git push`). Le premier build crée les tables dans Neon.
-6. **Vérifier** : ouvrir `https://<projet>.vercel.app/admin`, se connecter, puis dans *Participants* copier le lien secret
-   et l'ouvrir pour tester l'inscription. Ouvrir `/questionnaire` dans une fenêtre privée.
-7. **Partager** : `/questionnaire` aux proches de Val ; le lien `/rejoindre/...` dans le groupe des participants uniquement.
+6. **Vérifier** : ouvrir `https://<projet>.vercel.app/admin`, se connecter, puis ouvrir `/orga` pour tester l'inscription. Ouvrir `/questionnaire` dans une fenêtre privée.
+7. **Partager** : `/questionnaire` aux proches de Val ; le lien `/orga` dans le groupe des participants uniquement.
 
 Ensuite, chaque `git push` sur `main` redéploie automatiquement (avec migrations).
 
-Pour générer un secret (à lancer deux fois : un pour `SESSION_SECRET`, un pour `GROUP_ACCESS_CODE`) :
+Pour générer `SESSION_SECRET` :
 
 ```powershell
 node -e "console.log(require('crypto').randomBytes(24).toString('base64url'))"
 ```
-
-Changer `GROUP_ACCESS_CODE` (puis redéployer) invalide l'ancien lien secret s'il a fuité ; les personnes déjà entrées restent connectées.
 
 ## Ancienne version
 

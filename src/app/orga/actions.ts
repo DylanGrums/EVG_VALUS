@@ -6,7 +6,7 @@
  */
 import { revalidatePath } from "next/cache";
 import { getDb } from "@/db";
-import { getMember, setMember } from "@/lib/session";
+import { setMember } from "@/lib/session";
 import { requireParticipant } from "@/lib/orga/auth";
 import { OrgaError, toActionState, type ActionState } from "@/lib/orga/errors";
 import { getActiveParticipant, NameTakenError, registerSelf } from "@/lib/orga/participants";
@@ -26,7 +26,6 @@ export type IdentityState =
   | undefined;
 
 async function identify(id: unknown): Promise<IdentityState> {
-  if (!(await getMember())) return { error: "Rouvre le lien du groupe pour continuer." };
   const participant = isUuid(id) ? await getActiveParticipant(await getDb(), id) : null;
   if (!participant) return { error: "Ce prénom n’est plus dans la liste. Choisis-en un autre ou inscris-toi." };
   await setMember(participant.id);
@@ -49,7 +48,6 @@ export async function restoreParticipantAction(participantId: string): Promise<I
 
 /** Premier passage : la personne entre son prénom, on l'ajoute à la liste du groupe. */
 export async function registerAction(_: IdentityState, form: FormData): Promise<IdentityState> {
-  if (!(await getMember())) return { error: "Rouvre le lien du groupe pour continuer." };
   try {
     const participant = await registerSelf(await getDb(), String(form.get("name") ?? ""));
     await setMember(participant.id);

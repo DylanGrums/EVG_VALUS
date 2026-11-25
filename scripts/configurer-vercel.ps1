@@ -48,7 +48,7 @@ if (-not (Test-Var "DATABASE_URL")) {
 Write-Host "  DATABASE_URL present (Neon connecte)." -ForegroundColor Green
 
 Write-Host "4/4 Secrets de l'application" -ForegroundColor Cyan
-foreach ($name in @("SESSION_SECRET", "GROUP_ACCESS_CODE")) {
+foreach ($name in @("SESSION_SECRET")) {
   if (Test-Var $name) { Write-Host "  $name existe deja, conserve." } else { Add-VercelEnv $name (New-Secret) }
 }
 

@@ -66,7 +66,7 @@ export class NameTakenError extends OrgaError {
 }
 
 /**
- * Inscription d'un membre par lui-même au premier passage sur le lien secret.
+ * Inscription d'un membre par lui-même au premier passage sur /orga.
  * Contrairement à addParticipant (admin), on ne réactive jamais une personne retirée par les orgas :
  * on crée une nouvelle fiche. Un prénom déjà actif est refusé (NameTakenError).
  */

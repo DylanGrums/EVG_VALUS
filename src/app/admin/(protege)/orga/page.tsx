@@ -5,7 +5,6 @@ import { Badge, Card, Hero, LinkButton, Shell } from "@/components/ui";
 import { requireAdminPage } from "@/lib/orga/auth";
 import { STATUS_LABELS, TOPIC_TYPE_EMOJI, TOPIC_TYPE_LABELS, formatCommentDate } from "@/lib/orga/format";
 import { listRecentComments, listTopicSummaries, listTopics } from "@/lib/orga/topics";
-import { groupAccessCode } from "@/lib/session";
 import { ActionForm, Collapsible, ConfirmButton, SubmitButton } from "@/app/orga/_components/forms";
 import { PhaseBadge } from "@/app/orga/_components/views";
 import { createTopicAction, deleteCommentAction, moveTopicAction } from "./actions";
@@ -29,7 +28,7 @@ export default async function AdminOrga() {
       <div className="flex flex-wrap gap-2">
         <LinkButton href="/admin/orga/infos" variant="secondary">ℹ️ Infos pratiques du carnet</LinkButton>
         <LinkButton href="/admin/participants" variant="secondary">👥 Participants</LinkButton>
-        <LinkButton href={`/rejoindre/${encodeURIComponent(groupAccessCode())}`} prefetch={false} variant="ghost">
+        <LinkButton href="/orga" variant="ghost">
           Voir l’espace membres →
         </LinkButton>
       </div>

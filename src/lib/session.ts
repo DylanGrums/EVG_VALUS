@@ -5,9 +5,8 @@ import { timingSafeEqual } from "node:crypto";
 /**
  * Sessions par cookies signés (JWT HS256).
  * - evg_admin  : organisateur connecté via ADMIN_PASSWORD (/admin/connexion).
- * - evg_member : membre du groupe entré par le lien secret /rejoindre/<GROUP_ACCESS_CODE>,
- *                avec participantId une fois le prénom choisi.
- * Valentin n'a jamais de lien : rien de l'orga n'est accessible sans evg_member ou evg_admin.
+ * - evg_member : prénom choisi sur /orga (participantId).
+ * L'orga est ouverte à qui a l'adresse du site : Valentin ne doit jamais la recevoir.
  */
 const ADMIN_COOKIE = "evg_admin";
 const MEMBER_COOKIE = "evg_member";
@@ -80,15 +79,10 @@ export async function endAdminSession() {
 
 export type MemberSession = { member: true; participantId?: string };
 
-export function groupAccessCode() {
-  const value = env("GROUP_ACCESS_CODE");
-  if (!value && process.env.NODE_ENV === "production") throw new Error("GROUP_ACCESS_CODE manquant");
-  return value || "local";
-}
-
 export async function getMember() {
   const session = await read<MemberSession>(MEMBER_COOKIE);
-  return session?.member ? session : null;
+  // Pas de lien secret : tout visiteur est membre, l'identité vient du prénom choisi.
+  return session?.member ? session : ({ member: true } as MemberSession);
 }
 export async function setMember(participantId?: string) {
   await write(MEMBER_COOKIE, participantId ? { member: true, participantId } : { member: true });

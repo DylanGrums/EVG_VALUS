@@ -178,19 +178,3 @@ export function OptionFields({ option, type, detailsOpen }: { option?: TopicOpti
     </div>
   );
 }
-
-/** Page neutre affichée à qui n'a pas le bon lien : ne révèle rien du contenu. */
-export function NeutralPage({ children }: { children?: ReactNode }) {
-  return (
-    <main className="mx-auto grid min-h-dvh max-w-md place-items-center px-4 py-10 text-center">
-      <div className="space-y-3">
-        <p className="text-5xl" aria-hidden>
-          🔒
-        </p>
-        <h1 className="text-2xl">Rien à voir ici</h1>
-        <p className="text-muted">Ce lien n’est pas (ou plus) valide.</p>
-        {children}
-      </div>
-    </main>
-  );
-}

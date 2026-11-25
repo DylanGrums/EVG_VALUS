@@ -4,7 +4,6 @@ import { getDb } from "@/db";
 import { Badge, Button, Card, Hero, Input, LinkButton, Shell } from "@/components/ui";
 import { requireAdminPage } from "@/lib/orga/auth";
 import { listParticipants } from "@/lib/orga/participants";
-import { groupAccessCode } from "@/lib/session";
 import { ActionForm, ConfirmButton, CopyButton, SubmitButton } from "@/app/orga/_components/forms";
 import { addParticipantAction, removeParticipantAction, renameParticipantAction, restoreParticipantAction } from "./actions";
 
@@ -23,7 +22,7 @@ export default async function Participants() {
   const people = await listParticipants(await getDb(), { includeInactive: true });
   const active = people.filter((p) => p.active);
   const removed = people.filter((p) => !p.active);
-  const path = `/rejoindre/${encodeURIComponent(groupAccessCode())}`;
+  const path = "/orga";
   const link = `${await origin()}${path}`;
 
   return (
@@ -33,7 +32,7 @@ export default async function Participants() {
       </Hero>
 
       <Card className="space-y-3">
-        <h2 className="text-xl">🔗 Lien secret du groupe</h2>
+        <h2 className="text-xl">🔗 Lien du groupe</h2>
         <p className="text-sm text-muted">
           À partager dans le groupe WhatsApp des participants, <strong>jamais à Valentin</strong>. Au premier passage, chacun entre son prénom (il s’ajoute à la liste ci-dessous) ; ensuite le téléphone s’en souvient. Vous pouvez aussi ajouter des prénoms à l’avance.
         </p>

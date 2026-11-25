@@ -19,7 +19,7 @@ export default function AdminHome() {
         </Card>
         <Card>
           <h2 className="mb-2 text-xl">Participants</h2>
-          <p className="mb-4 text-muted">Liste des prénoms du groupe et lien secret d’accès.</p>
+          <p className="mb-4 text-muted">Liste des prénoms du groupe et lien d’accès.</p>
           <LinkButton href="/admin/participants">Ouvrir</LinkButton>
         </Card>
       </div>
