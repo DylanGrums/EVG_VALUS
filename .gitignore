@@ -28,3 +28,6 @@ dist/
 outputs/
 .evg-data/
 .netlify/
+
+.vercel
+.env*

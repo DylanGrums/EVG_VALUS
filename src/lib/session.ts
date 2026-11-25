@@ -13,8 +13,13 @@ const ADMIN_COOKIE = "evg_admin";
 const MEMBER_COOKIE = "evg_member";
 const MAX_AGE = 60 * 60 * 24 * 180; // 180 jours
 
+/** Variable d'environnement sans espaces ni retours à la ligne parasites (copier-coller, stdin…). */
+function env(name: string) {
+  return process.env[name]?.trim() || undefined;
+}
+
 function secret() {
-  const value = process.env.SESSION_SECRET;
+  const value = env("SESSION_SECRET");
   if (!value) {
     if (process.env.NODE_ENV === "production") throw new Error("SESSION_SECRET manquant");
     return new TextEncoder().encode("dev-only-secret-ne-pas-utiliser-en-prod");
@@ -56,7 +61,7 @@ export function safeEqual(a: string, b: string) {
 // --- Organisateurs ---
 
 export function adminPassword() {
-  const value = process.env.ADMIN_PASSWORD;
+  const value = env("ADMIN_PASSWORD");
   if (!value && process.env.NODE_ENV === "production") throw new Error("ADMIN_PASSWORD manquant");
   return value || "organisateur-local";
 }
@@ -76,7 +81,7 @@ export async function endAdminSession() {
 export type MemberSession = { member: true; participantId?: string };
 
 export function groupAccessCode() {
-  const value = process.env.GROUP_ACCESS_CODE;
+  const value = env("GROUP_ACCESS_CODE");
   if (!value && process.env.NODE_ENV === "production") throw new Error("GROUP_ACCESS_CODE manquant");
   return value || "local";
 }

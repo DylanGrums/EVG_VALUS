@@ -57,7 +57,7 @@ Pour repartir d'une base locale vide : arrêter le serveur et supprimer le dossi
    Les fonctions tournent aussi à Francfort (`vercel.json` → `fra1`), à côté de la base.
 4. **Variables d'environnement** (*Settings → Environment Variables*, cocher Production et Preview) :
    - `SESSION_SECRET` : secret aléatoire (commande ci-dessous) ;
-   - `ADMIN_PASSWORD` : mot de passe des organisateurs, 20+ caractères, à transmettre aux co-orgas ;
+   - `ADMIN_PASSWORD` : mot de passe des organisateurs, à transmettre aux co-orgas ;
    - `GROUP_ACCESS_CODE` : code du lien secret du groupe (commande ci-dessous).
 5. **Déployer** : *Deployments → Redeploy* (ou un `git push`). Le premier build crée les tables dans Neon.
 6. **Vérifier** : ouvrir `https://<projet>.vercel.app/admin`, se connecter, puis dans *Participants* copier le lien secret
