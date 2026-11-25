@@ -1,5 +1,30 @@
+# dépendances
+node_modules/
+
+# Next.js / build
+/.next/
+/out/
+/build
+*.tsbuildinfo
+next-env.d.ts
+
+# Vercel
+.vercel
+
+# variables d'environnement (secrets) : seul l'exemple est versionné
+.env*
+!.env.example
+
+# données locales PGlite
+/.data/
+
+# divers
+.DS_Store
+*.pem
+npm-debug.log*
+
+# ancienne version (artefacts)
 dist/
 outputs/
 .evg-data/
-.env*
-!.env.example
+.netlify/

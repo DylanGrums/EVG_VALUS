@@ -1,0 +1,24 @@
+@import "tailwindcss";
+
+/* Palette reprise de l'ancienne version : violet profond + vert citron. */
+@theme {
+  --color-ink: #1e1932;
+  --color-muted: #574e6d;
+  --color-line: #dcd7e7;
+  --color-paper: #f6f5f9;
+  --color-panel: #ffffff;
+  --color-brand: #5526a3;
+  --color-brand-light: #f0e7ff;
+  --color-night: #24143e;
+  --color-lime: #e5f6ae;
+  --color-danger: #941d39;
+  --color-ok: #1f6b3a;
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+@layer base {
+  html { background: var(--color-paper); color: var(--color-ink); }
+  body { min-height: 100dvh; line-height: 1.55; -webkit-font-smoothing: antialiased; }
+  h1, h2, h3 { letter-spacing: -0.03em; line-height: 1.15; text-wrap: balance; font-weight: 750; }
+  :focus-visible { outline: 3px solid var(--color-brand); outline-offset: 2px; }
+}

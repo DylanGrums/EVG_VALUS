@@ -1,32 +1,79 @@
-# Le carnet de l’EVG de Valentin
+# Le carnet de l'EVG de Valentin
 
-L’application propose quatre invitations individuelles, un questionnaire de 20 questions et un tableau de bord organisateur. Un invité peut reprendre son brouillon sur un autre appareil en ouvrant son lien. L’organisateur voit les réponses individuelles après leur envoi et peut saisir un avis de référence à part. L’inclusion de cet avis dans les analyses et les exports est facultative.
+Objectifs et décisions du projet : voir [PROJECT.md](PROJECT.md).
 
-## Utilisation
+Stack : Next.js 16 (App Router, TypeScript), Tailwind v4, Drizzle ORM, Postgres (Neon en ligne, PGlite en local).
 
-1. Ouvre `/admin` et connecte-toi avec le compte ChatGPT configuré (ou les identifiants affichés dans le terminal pour le mode local).
-2. Clique sur **Créer les quatre liens**, puis envoie un lien différent à chacun des quatre proches. L’ouverture ne consomme pas le lien. Chaque lien autorise un seul envoi final.
-3. Clique sur **Actualiser** pour voir les nouveaux envois. Utilise **Ajouter ton avis privé** pour intégrer tes réponses historiques. Tu peux laisser les questions sans réponse lorsque la correspondance avec l’ancien questionnaire est incertaine.
-4. Le CSV contient une ligne par personne et par question. Le JSON contient les définitions du questionnaire, les réponses exportées et les analyses. Les deux exports suivent la sélection **Inclure ton avis**.
+## Les adresses
 
-Les quatre premières invitations sont identifiées par numéro dans le tableau de bord. Le lien donne accès au brouillon associé. Il est donc destiné à une seule personne.
+| Adresse | Pour qui |
+| --- | --- |
+| `/questionnaire` | Questionnaire « profil de Val » : lien direct à envoyer aux proches (`/` y redirige) |
+| `/rejoindre/<GROUP_ACCESS_CODE>` | Lien secret du groupe EVG : à partager uniquement aux participants. Premier passage : prénom, puis « répondre au questionnaire » ou « passer » |
+| `/orga` | Espace des participants (votes, propositions, commentaires, carnet sur place) |
+| `/admin` | Espace organisateurs (mot de passe `ADMIN_PASSWORD`) |
 
-## Source du questionnaire
+Ne jamais envoyer le lien `/rejoindre/...` à quelqu'un qui pourrait le montrer à Valentin.
 
-Les questions 17 à 20 ont été reformulées à partir des réponses sources et du contexte accessible. Les questions 1 à 16 ont été reconstituées depuis la synthèse générale disponible. Les options expriment des pistes sans ordre de préférence et les commentaires permettent de préciser les conditions, les exceptions et les refus clairs. La question 19 distingue un motif de déplacement d’un simple complément. La question 20 porte sur des attentions indépendantes de la destination.
+## Développement local
 
-## Exécution locale
+Prérequis : Node.js 22 ou plus récent.
 
-Avec Node.js 24 ou une version ultérieure, lance `npm start` depuis ce dossier. Le terminal donne l’adresse locale et les identifiants du tableau de bord. Par défaut, les données persistent dans `.evg-data/carnet.sqlite`. Cette instance est prévue pour l’aperçu sur cet ordinateur.
+```powershell
+npm install
+```
 
-## Hébergement Sites
+```powershell
+npm run dev
+```
 
-- `npm run build` produit le Worker dans `dist/server/index.js`. Le manifeste `.openai/hosting.json` demande un stockage D1. La migration SQL se trouve dans `drizzle/`.
-- Renseigner `ADMIN_EMAIL` comme secret Sites avec l’adresse du compte organisateur. Renseigner `SITE_ORIGIN` avec l’origine HTTPS exacte du Site, sans barre finale.
-- Le Site doit autoriser les visites publiques pour que les invités ouvrent le questionnaire sans compte. Les invitations restent nécessaires pour accéder au formulaire et l’authentification ChatGPT réserve le tableau de bord et ses données au compte organisateur. Si l’audience publique est indisponible, l’application requiert un hébergement qui fournisse une base D1 et une identité administrateur de confiance.
+Puis ouvrir http://localhost:3000. Sans `.env.local`, tout fonctionne avec des valeurs de dev :
 
-## Autre hébergement
+- base PGlite (Postgres embarqué) dans `.data/pglite`, migrations appliquées automatiquement au démarrage ;
+- mot de passe admin : `organisateur-local` ;
+- lien du groupe : http://localhost:3000/rejoindre/local
 
-Un serveur avec Node.js 24 peut héberger la version SQLite derrière un proxy HTTPS sur la même machine. Fixer `EVG_PUBLIC_ORIGIN` à l’adresse publique HTTPS, `EVG_LOCAL_PASSWORD` à un mot de passe unique d’au moins 20 caractères et `EVG_DB_PATH` à un fichier sur un volume persistant. Le dossier parent de ce fichier doit exister. Lancer `npm start` comme service et diriger le proxy HTTPS vers `127.0.0.1:4173`. Se connecter à `/admin` avec l’identifiant `organisateur` et ce mot de passe. Sauvegarder le volume SQLite avec les sauvegardes du serveur.
+Pour personnaliser, copier `.env.example` en `.env.local`.
 
-Les choix partagés sont des propositions cochées par au moins deux personnes. Les divergences affichées proviennent des choix opposés définis dans le questionnaire et du contraste entre « Aucune de ces propositions » et les choix retenus par d’autres répondants. « Je ne sais pas » est affiché séparément. Les commentaires restent lisibles dans la vue individuelle et sous chaque question.
+Autres commandes : `npm test` (vitest, base PGlite en mémoire), `npm run typecheck`, `npm run lint`.
+
+## Modifier le schéma de la base
+
+1. Modifier `src/db/schema/*.ts`.
+2. Générer la migration : `npm run db:generate`, puis commiter le dossier `drizzle/`.
+3. En local et dans les tests, les migrations s'appliquent toutes seules au démarrage. Au déploiement, Vercel les applique (`vercel-build` lance `drizzle-kit migrate` avant `next build`).
+
+Pour repartir d'une base locale vide : arrêter le serveur et supprimer le dossier `.data/`.
+
+## Déploiement : Vercel + Neon
+
+1. **GitHub** : créer un dépôt **privé** vide (sans README), puis depuis ce dossier :
+   `git remote add origin https://github.com/<toi>/carnet-evg.git` et `git push -u origin main`.
+2. **Vercel** : *Add New → Project*, importer le dépôt. Preset Next.js détecté, ne rien changer aux commandes
+   (Vercel lance `vercel-build` : migrations puis build). Ne pas déployer tout de suite si on te le propose sans variables :
+   un premier échec n'est pas grave, on relance après l'étape 4.
+3. **Base Neon** : dans le projet Vercel, *Storage → Create Database → Neon* (plan gratuit), région **Frankfurt (eu-central-1)**,
+   connectée aux environnements Production et Preview. Vercel ajoute `DATABASE_URL` tout seul.
+   Les fonctions tournent aussi à Francfort (`vercel.json` → `fra1`), à côté de la base.
+4. **Variables d'environnement** (*Settings → Environment Variables*, cocher Production et Preview) :
+   - `SESSION_SECRET` : secret aléatoire (commande ci-dessous) ;
+   - `ADMIN_PASSWORD` : mot de passe des organisateurs, 20+ caractères, à transmettre aux co-orgas ;
+   - `GROUP_ACCESS_CODE` : code du lien secret du groupe (commande ci-dessous).
+5. **Déployer** : *Deployments → Redeploy* (ou un `git push`). Le premier build crée les tables dans Neon.
+6. **Vérifier** : ouvrir `https://<projet>.vercel.app/admin`, se connecter, puis dans *Participants* copier le lien secret
+   et l'ouvrir pour tester l'inscription. Ouvrir `/questionnaire` dans une fenêtre privée.
+7. **Partager** : `/questionnaire` aux proches de Val ; le lien `/rejoindre/...` dans le groupe des participants uniquement.
+
+Ensuite, chaque `git push` sur `main` redéploie automatiquement (avec migrations).
+
+Pour générer un secret (à lancer deux fois : un pour `SESSION_SECRET`, un pour `GROUP_ACCESS_CODE`) :
+
+```powershell
+node -e "console.log(require('crypto').randomBytes(24).toString('base64url'))"
+```
+
+Changer `GROUP_ACCESS_CODE` (puis redéployer) invalide l'ancien lien secret s'il a fuité ; les personnes déjà entrées restent connectées.
+
+## Ancienne version
+
+`legacy/` contient la version vanilla JS (Netlify Functions + Blobs), gardée comme référence pendant le rework. À supprimer une fois la nouvelle version validée, ainsi que le site Netlify associé.

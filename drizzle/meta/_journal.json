@@ -1,5 +1,13 @@
 {
   "version": "7",
-  "dialect": "sqlite",
-  "entries": [{"idx":0,"version":"6","when":1795629600000,"tag":"0000_carnet","breakpoints":true}]
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1795636067652,
+      "tag": "0000_init",
+      "breakpoints": true
+    }
+  ]
 }
