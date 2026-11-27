@@ -31,3 +31,6 @@ outputs/
 
 .vercel
 .env*
+
+# worktrees et réglages locaux de Claude
+/.claude/

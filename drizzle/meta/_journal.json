@@ -15,6 +15,13 @@
       "when": 1795803825000,
       "tag": "0001_identite",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795804639941,
+      "tag": "0002_idees",
+      "breakpoints": true
     }
   ]
 }

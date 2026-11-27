@@ -14,8 +14,11 @@ Stack : Next.js 16 (App Router, TypeScript), Tailwind v4, Drizzle ORM, Postgres 
 | `/questionnaire` | Questionnaire « profil de Val » (lien déjà envoyé : sans prénom, identification d'abord puis retour ici ; le brouillon du navigateur est retrouvé) |
 | `/resultats` | Tendances anonymes du questionnaire (à partir de 3 réponses envoyées) |
 | `/orga`, `/orga/sur-place` | Votes, propositions, commentaires ; carnet sur place |
-| `/idees` | Module « Idées » (fourni à part, lien dans la navigation) |
+| `/idees` | Idées de villes et d'événements : 👍 multiples, commentaires, propositions. `/idees/<id>` : détail d'une ville |
 | `/admin` | Espace organisateurs (mot de passe `ADMIN_PASSWORD`) |
+| `/admin/idees` | Gestion des idées : retenir, masquer, modifier, supprimer |
+| `/admin/idees/recherche` | Synthèse Markdown du questionnaire (`/admin/idees/recherche/synthese`) et prompt de recherche approfondie à copier |
+| `/admin/idees/import` | Import du JSON de la recherche (format : [docs/import-idees.md](docs/import-idees.md)) |
 
 L'app n'a pas de code d'accès : ne jamais envoyer le lien à quelqu'un qui pourrait le montrer à Valentin.
 Anciennes adresses conservées : `/orga/qui-es-tu` → `/qui-es-tu`, `/orga/bienvenue` → `/bienvenue`, `/rejoindre/...` → `/`.
