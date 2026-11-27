@@ -194,7 +194,7 @@ describe("vue publique anonyme", () => {
     expect(first.answered).toBe(4);
     // c2 : 3 personnes sur 4, quel que soit leur niveau de connaissance (pondéré, ce serait 3/6).
     const c2 = first.top.find((c) => c.label === v1.questions[0].options.c2)!;
-    expect(c2).toEqual({ label: v1.questions[0].options.c2, count: 3, share: 0.75 });
+    expect(c2).toEqual({ label: v1.questions[0].options.c2, count: 3, answered: 4, share: 0.75 });
     expect(first.top[0]).toMatchObject({ label: v1.questions[0].options.c1, count: 4, share: 1 });
     expect(trends.consensus.some((h) => h.label === v1.questions[0].options.c1 && h.share === 1)).toBe(true);
     // Questions libres absentes (que des commentaires).
@@ -232,6 +232,135 @@ describe("vue publique anonyme", () => {
     // Questions où tout le monde a dit « Je ne sais pas » : en tête, à 100 %.
     expect(trends.doubts[0]).toMatchObject({ share: 1, detail: "4 « je ne sais pas »" });
     expect(trends.doubts.some((d) => d.label === q6.title)).toBe(false);
+  });
+
+  /** Réponses construites à la main (fonction pure) : `answers` par question, version 1 par défaut. */
+  const resp = (i: number, answers: Record<string, string[]>, version = 1): ResponseEntry => ({
+    id: `secret-id-${i}`,
+    version,
+    name: `${SECRET_NAME}${i}`,
+    step: 0,
+    answers: Object.fromEntries(Object.entries(answers).map(([k, choices]) => [k, { choices, comment: SECRET_COMMENT }])),
+    submittedAt: "2026-11-20T10:00:00.000Z",
+    updatedAt: null,
+    excluded: false,
+    knowledge: i % 2 ? "very" : "barely",
+  });
+  const ready = (trends: ReturnType<typeof publicTrends>) => {
+    if (trends.status !== "ready") throw new Error("attendu : ready");
+    return trends;
+  };
+  const title = (id: number) => v1.questions.find((q) => q.id === id)!.title;
+
+  test("matrice : feu tricolore par activité, base par activité, refus regroupés en « À éviter », jamais en consensus", () => {
+    const trends = ready(
+      publicTrends({
+        versions: [v1],
+        responses: [
+          resp(0, { 5: ["0-3", "1-0", "2-1", "3-2"] }),
+          resp(1, { 5: ["0-2", "1-0", "2-1", "3-0"] }),
+          resp(2, { 5: ["0-2", "1-0", "2-0", "3-0"] }),
+          resp(3, { 5: ["unknown"] }),
+          resp(4, { 5: ["1-0"] }),
+        ],
+      }),
+    );
+    const q5 = trends.questions.find((q) => q.title === title(5))!;
+    expect(q5.top).toEqual([]);
+    expect(q5.specials).toEqual([{ label: "Je ne sais pas", count: 1, answered: 5, share: 0.2 }]);
+    // Activité 4 (sensations fortes) : seul le « Je ne sais pas » global, 1 répondant < 3 → masquée.
+    expect(q5.rows!.map((r) => [r.label, r.answered, r.level])).toEqual([
+      ["Activités en hauteur", 4, "rouge"],
+      ["Activités sur ou dans l’eau", 5, "vert"],
+      ["Activités de vitesse", 4, "orange"],
+      ["Activités physiquement exigeantes", 4, "gris"],
+    ]);
+    expect(q5.rows![0].cells.map((c) => c.count)).toEqual([0, 0, 2, 1, 1]);
+    // Consensus : « partant » sur l'eau (4 sur 5) uniquement, jamais un refus.
+    expect(trends.consensus).toEqual([{ question: title(5), label: "Activités sur ou dans l’eau : il serait partant", count: 4, answered: 5, share: 0.8 }]);
+    expect(trends.limits).toEqual([
+      { question: title(5), label: "Activités en hauteur", detail: "1 a déjà dit non, 2 ne pensent pas", count: 3, answered: 4, share: 0.75, unanimous: true },
+    ]);
+    // Désaccord matrice au format « activité : « A » vs « B » ».
+    expect(trends.disagreements.map((d) => d.text)).toContain("Activités physiquement exigeantes : « il serait partant » vs « je ne pense pas »");
+    // Doutes : « je ne sais pas » global dans chaque activité ; « je ne pense pas » isolé = réserve ; refus déjà en limites = pas de doublon.
+    const doubts = Object.fromEntries(trends.doubts.filter((d) => d.question === title(5)).map((d) => [d.label, d]));
+    expect(doubts["Activités en hauteur"]).toMatchObject({ detail: "1 « je ne sais pas »", count: 1, answered: 4 });
+    expect(doubts["Activités de vitesse"]).toMatchObject({ detail: "1 « je ne sais pas », 2 « ça dépend »", count: 3, answered: 4, share: 0.75 });
+    expect(doubts["Activités physiquement exigeantes"]).toMatchObject({ detail: "1 « je ne sais pas », 1 « je ne pense pas »", count: 2, answered: 4 });
+    expect(doubts["Activités sur ou dans l’eau"]).toBeUndefined(); // 1 sur 5 = 20 %
+  });
+
+  test("seuils publics : risque à 2 personnes et un tiers, « Aucune » ≥ 25 %, Q6 jamais sous « Limites », « Peu importe » pas un doute", () => {
+    const answers = [
+      { 16: ["c1", "c3"], 6: ["c1"], 13: ["any"], 1: ["c2"] },
+      { 16: ["c1"], 6: ["c1"], 13: ["any"], 1: ["c2"] },
+      { 16: ["c3"], 6: ["c1"], 13: ["any"], 1: ["none"] },
+      { 16: ["c2"], 6: ["c2"], 13: ["c1"], 1: ["c2"] },
+      { 16: ["c4"], 6: ["c1"], 13: ["c1"], 1: ["c2"] },
+      { 16: ["c5"], 6: ["c1"], 13: ["c1"], 1: ["c2"] },
+      { 16: ["c6"], 6: ["c1"], 13: ["c1"], 1: ["c2"] },
+    ];
+    const trends = ready(publicTrends({ versions: [v1], responses: answers.map((a, i) => resp(i, a)) }));
+    const q16 = v1.questions.find((q) => q.id === 16)!;
+    // c1 et c3 : 2 sur 7 (< 1/3) → pas « à éviter ».
+    expect(trends.limits).toEqual([]);
+    expect(trends.consensus.some((h) => h.question === q16.title)).toBe(false);
+    // Q1 : « Aucune » 1 sur 7 (14 %) → pas de désaccord.
+    expect(trends.disagreements.some((d) => d.text.includes("aucune proposition"))).toBe(false);
+    // Q6 positive : consensus, thème public « Limites, confort et vigilance ».
+    expect(trends.consensus).toContainEqual({ question: title(6), label: v1.questions.find((q) => q.id === 6)!.options.c1, count: 6, answered: 7, share: 6 / 7 });
+    expect(trends.questions.find((q) => q.title === title(6))!.themeLabel).toBe("Limites, confort et vigilance");
+    expect(trends.questions.some((q) => q.themeLabel === "Limites et points de vigilance")).toBe(false);
+    // Q13 « Peu importe » visible en option spéciale, mais pas un doute.
+    expect(trends.questions.find((q) => q.title === title(13))!.specials).toEqual([{ label: "Peu importe", count: 3, answered: 7, share: 3 / 7 }]);
+    expect(trends.doubts.some((d) => d.label === title(13))).toBe(false);
+    // Q16 : 6 risques différents cités, aucun ≥ 40 %, mais c'est une question de vigilance → pas « avis dispersés ».
+    expect(trends.dispersed).toEqual([]);
+
+    const more = ready(publicTrends({ versions: [v1], responses: [...answers, { 16: ["c1"] }, { 16: ["c3"] }].map((a, i) => resp(i, a)) }));
+    // 3 sur 9 = un tiers → à éviter.
+    expect(more.limits.map((l) => [l.label, l.count, l.answered])).toEqual([
+      [q16.options.c1, 3, 9],
+      [q16.options.c3, 3, 9],
+    ]);
+  });
+
+  test("avis dispersés : au moins 4 options citées, aucune à 40 %", () => {
+    const picks = [["c1"], ["c2"], ["c3"], ["c4"], ["c5"], ["c1"]];
+    const trends = ready(publicTrends({ versions: [v1], responses: picks.map((c, i) => resp(i, { 9: c })) }));
+    expect(trends.dispersed).toEqual([{ question: title(9), options: 5, topShare: 2 / 6, answered: 6 }]);
+  });
+
+  test("masquage : question sous 3 répondants, anciennes versions d'une même question fusionnées ; aucune fuite", () => {
+    const v2: QuestionnaireVersion = {
+      version: 2,
+      questions: v1.questions.map((q) => (q.id === 1 ? { ...q, title: "Ambiance générale (modifiée)", options: { ...q.options, c1: "Nouveau libellé" } } : q)),
+    };
+    const trends = ready(
+      publicTrends({
+        versions: [v1, v2],
+        responses: [
+          resp(0, { 1: ["c1"], 2: ["c1"], 3: ["c1"] }, 1),
+          resp(1, { 1: ["c1"], 2: ["c1"], 3: ["c1"] }, 1),
+          resp(2, { 1: ["c1"], 3: ["c1"] }, 1),
+          resp(3, { 1: ["c1"], 3: ["c2"] }, 2),
+          resp(4, { 1: ["c1"], 3: ["c2"] }, 2),
+          resp(5, { 1: ["c1"], 3: ["c2"] }, 2),
+        ],
+      }),
+    );
+    // Q2 : 2 répondants → masquée partout.
+    expect(trends.questions.some((q) => q.title === title(2))).toBe(false);
+    expect(trends.consensus.some((h) => h.question === title(2))).toBe(false);
+    // Q1 : une seule entrée (la version la plus récente assez remplie).
+    const q1s = trends.questions.filter((q) => q.title.startsWith("Ambiance générale"));
+    expect(q1s).toHaveLength(1);
+    expect(q1s[0]).toMatchObject({ title: "Ambiance générale (modifiée)", answered: 3 });
+    // Q3 identique dans les deux versions : regroupée (6 répondants).
+    expect(trends.questions.find((q) => q.title === title(3))!.answered).toBe(6);
+    const json = JSON.stringify(trends);
+    for (const forbidden of [SECRET_NAME, SECRET_COMMENT, "secret-id", "knowledge", "weight", "barely", "very", "comment", "\"id\""]) expect(json).not.toContain(forbidden);
   });
 
   test("la fonction ne modifie pas les données d'entrée", async () => {

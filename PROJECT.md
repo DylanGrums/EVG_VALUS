@@ -110,9 +110,12 @@ Le questionnaire a déjà été envoyé et des réponses réelles sont en base :
   prénom seul (sinon choisir le prénom d'un autre exposerait ses réponses). Les admins lient/délient une réponse à la main
   (fiche réponse) et peuvent supprimer une réponse depuis la liste (doublons).
 - **Tendances publiques** (`/resultats` et accueil, `src/lib/questionnaire/public-view.ts`) : agrégats anonymes et **non
-  pondérés** (nombre de réponses, top choix par question, consensus, désaccords, « non » et limites). Jamais de prénom,
-  de commentaire libre, de vue par répondant ni de niveau de connaissance. Rien sous 3 réponses envoyées ; brouillons,
-  exclues et supprimées hors compte. Promesse au répondant : « Seul l'organisateur peut lire tes réponses ; le groupe ne
+  pondérés** (nombre de réponses, top choix par question, consensus positifs, désaccords, « à éviter », doutes, avis
+  dispersés, feu tricolore par activité pour la matrice Q5 ; toujours « x sur N » à côté des pourcentages). Jamais de prénom,
+  de commentaire libre, de vue par répondant ni de niveau de connaissance. Rien sous 3 réponses envoyées, ni pour une
+  question ou une activité qui a moins de 3 répondants ; brouillons, exclues et supprimées hors compte. Pas de consensus
+  sur une question de vigilance ni sur un refus : ces accords vont dans « À éviter ». Matrice : base = répondants de
+  l'activité (+ « Je ne sais pas » globaux). Promesse au répondant : « Seul l'organisateur peut lire tes réponses ; le groupe ne
   voit que des tendances anonymes ». Pondération, filtres et détail par répondant restent dans l'admin.
 - **Navigation** commune aux pages membres (`src/components/app-nav.tsx`) : Accueil, Résultats, Orga, Idées, Sur place,
   puce du prénom (changer), lien Admin pour un organisateur connecté ; l'admin a un lien « ← L'app ».

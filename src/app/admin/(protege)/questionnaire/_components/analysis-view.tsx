@@ -52,6 +52,24 @@ function Synthesis({ theme }: { theme: ThemeSummary }) {
             <Signals items={theme.signals} />
           </>
         )}
+        {theme.limits.length > 0 && (
+          <>
+            <h3 className={h3}>À éviter</h3>
+            <ul className="space-y-1 text-sm">
+              {theme.limits.map((item, i) => (
+                <li key={item.target + i}>
+                  <a className="font-medium text-brand underline" href={`#${item.target}`}>
+                    {item.label}
+                  </a>{" "}
+                  <strong>{formatPercent(item.share)}</strong> <span className="text-muted">({plural(item.count, "personne", "personnes")} sur {item.answered})</span>
+                  {item.detail && <span className="text-muted"> · {item.detail}</span>}
+                  {item.unanimous && <Badge tone="danger" className="ml-1">quasi unanime</Badge>}
+                  {item.strict && <Badge className="ml-1">refus connu</Badge>}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
         {theme.divergences.length > 0 && (
           <>
             <h3 className={h3}>Avis divergents</h3>
@@ -81,14 +99,16 @@ function Synthesis({ theme }: { theme: ThemeSummary }) {
             </ul>
           </>
         )}
-        {!theme.signals.length && !theme.uncertain.length && <p className="text-sm text-muted">Aucun choix enregistré dans ce thème.</p>}
+        {!theme.signals.length && !theme.uncertain.length && !theme.limits.length &&<p className="text-sm text-muted">Aucun choix enregistré dans ce thème.</p>}
       </div>
     </details>
   );
 }
 
 function Distribution({ result }: { result: QuestionResult }) {
-  const { question, answered, choices, divergences, individuals, versions } = result;
+  const { question, answered, choices: all, divergences, individuals, versions, rows } = result;
+  // Matrice : les cellules sont affichées par activité (base = répondants de l'activité) ; restent les options globales.
+  const choices = rows.length ? all.filter((c) => c.special) : all;
   return (
     <details id={result.key} className="scroll-mt-4 rounded-xl border border-line bg-panel p-4">
       <summary className="cursor-pointer font-semibold">
@@ -96,6 +116,27 @@ function Distribution({ result }: { result: QuestionResult }) {
       </summary>
       <p className="mt-2 text-sm text-muted">{question.prompt}</p>
       <p className="text-xs text-muted">Version(s) analysée(s) : {versions.join(", ")}</p>
+      {rows.length > 0 && (
+        <div className="mt-3 space-y-3">
+          {rows.map((row) => (
+            <div key={row.index} className="rounded-lg border border-line p-2 text-sm">
+              <div className="flex items-baseline justify-between gap-3">
+                <strong>{row.label}</strong>
+                <span className="text-xs text-muted">
+                  {plural(row.answered, "personne", "personnes")} · {row.level}
+                </span>
+              </div>
+              <ul className="mt-1 flex flex-wrap gap-x-3 text-xs text-muted">
+                {row.cells.map((cell) => (
+                  <li key={cell.reaction}>
+                    {cell.label} : <strong className="text-ink">{formatPercent(cell.share, row.weightedAnswered > 0)}</strong> ({cell.count} sur {row.answered})
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      )}
       <div className="mt-3 space-y-2.5">
         {choices.map((choice) => (
           <div key={choice.key} className={choice.special ? "text-muted" : undefined}>
@@ -103,7 +144,9 @@ function Distribution({ result }: { result: QuestionResult }) {
               <span>{choice.label}</span>
               <span className="shrink-0">
                 <strong>{formatPercent(choice.share, result.weightedAnswered > 0)}</strong>{" "}
-                <span className="text-xs text-muted">· {plural(choice.count, "personne", "personnes")}</span>
+                <span className="text-xs text-muted">
+                  · {plural(choice.count, "personne", "personnes")} sur {choice.answered}
+                </span>
               </span>
             </div>
             <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-paper">

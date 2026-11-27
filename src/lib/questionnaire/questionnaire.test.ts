@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, test } from "vitest";
 import { createTestDb, type DB } from "@/db";
-import { analyze, exportCsv, exportJson } from "./analysis";
+import { analyze, exportCsv, exportJson, isNotableLimit } from "./analysis";
 import { cleanDefinition, toEditorQuestions } from "./definition";
 import { seedQuestions } from "./seed";
 import {
@@ -228,8 +228,105 @@ describe("analyses pondérées", () => {
       entry("b", null, { 5: { choices: ["0-3", "1-1"], comment: "" } }),
     ]));
     const r = a.results.find((x) => x.question.id === 5)!;
-    expect(r.divergences.some((t) => t.includes("Il serait partant") && t.includes("Il a déjà dit non"))).toBe(true);
+    expect(r.divergences).toContain("Activités en hauteur : « il serait partant » vs « il a déjà dit non »");
+    expect(r.divergenceItems.find((d) => d.text.startsWith("Activités en hauteur"))?.row).toBe(0);
     expect(r.uncertain).toBe(1);
+  });
+
+  const qr = (a: ReturnType<typeof analyze>, id: number) => a.results.find((r) => r.question.id === id)!;
+  const answers = (id: number, ...choices: string[]) => ({ [id]: { choices, comment: "" } });
+
+  test("matrice : base de chaque activité = répondants de l'activité + « Je ne sais pas » globaux", () => {
+    const a = analyze(data([
+      entry("a", null, answers(5, "0-0")),
+      entry("b", null, answers(5, "1-1")),
+      entry("c", null, answers(5, "unknown")),
+      entry("d", null, answers(1, "c1")), // n'a pas répondu à Q5
+    ]));
+    const r = qr(a, 5);
+    expect(r.answered).toBe(3);
+    const [row0, row1, row2] = r.rows;
+    // Activité 0 : a (partant) + c (je ne sais pas global) ; b n'a pas réagi à cette activité.
+    expect(row0).toMatchObject({ index: 0, name: "Activités en hauteur", answered: 2 });
+    expect(row0.cells[0]).toMatchObject({ count: 1, share: 0.5 });
+    expect(row0.cells[4]).toMatchObject({ count: 1, share: 0.5 });
+    expect(r.choices.find((c) => c.key === "0-0")).toMatchObject({ count: 1, answered: 2, share: 0.5 });
+    expect(row1.cells[1]).toMatchObject({ count: 1, share: 0.5 });
+    expect(row2).toMatchObject({ answered: 1 });
+    expect(row2.cells[4].share).toBe(1);
+  });
+
+  test("consensus : jamais sur un refus, « ça dépend » ou une question de vigilance ; ces accords sont des limites", () => {
+    const people = ["a", "b", "c"];
+    const a = analyze(data(people.map((id) => entry(id, null, { ...answers(5, "0-3", "1-1", "2-2"), ...answers(16, "c1") }))));
+    const r5 = qr(a, 5);
+    expect(r5.agreements).toEqual([]);
+    expect(r5.signals).not.toContain("1-1");
+    expect(r5.rows.map((row) => row.level).slice(0, 3)).toEqual(["rouge", "orange", "rouge"]);
+    const height = r5.limits.find((l) => l.row === 0)!;
+    expect(height).toMatchObject({ label: "Activités en hauteur", detail: "3 ont déjà dit non", count: 3, answered: 3, strict: true, unanimous: true });
+    expect(r5.limits.find((l) => l.row === 2)).toMatchObject({ detail: "3 ne pensent pas", strict: true, unanimous: true });
+    expect(r5.limits.some((l) => l.row === 1)).toBe(false);
+    const r16 = qr(a, 16);
+    expect(r16.agreements).toEqual([]);
+    expect(r16.limits[0]).toMatchObject({ key: "c1", count: 3, unanimous: true });
+    expect(a.byTheme.find((t) => t.id === "limites")!.agreements).toEqual([]);
+  });
+
+  test("matrice : un « déjà non » empêche le consensus « partant » (rouge) ; majorité partant = vert", () => {
+    const a = analyze(data([
+      entry("a", null, answers(5, "0-0", "1-0")),
+      entry("b", null, answers(5, "0-0", "1-0")),
+      entry("c", null, answers(5, "0-0", "1-0")),
+      entry("d", null, answers(5, "0-3", "1-4")),
+    ]));
+    const r = qr(a, 5);
+    expect(r.agreements).toEqual(["1-0"]);
+    expect(r.rows[0].level).toBe("rouge");
+    expect(r.rows[1].level).toBe("vert");
+    expect(r.limits.find((l) => l.row === 0)).toMatchObject({ detail: "1 a déjà dit non", strict: true, unanimous: false });
+  });
+
+  test("« Aucune » face à des choix : seulement si ≥ 25 %, jamais en vigilance ni en matrice", () => {
+    const none = (n: number, id = 1) => [
+      ...Array.from({ length: n }, (_, i) => entry(`n${i}`, null, answers(id, "none"))),
+      ...["a", "b", "c"].map((x) => entry(x, null, answers(id, "c1"))),
+    ];
+    expect(qr(analyze(data(none(1))), 1).divergences).toContain("Pour 1 personne, aucune proposition ne convient");
+    expect(qr(analyze(data(none(2))), 1).divergences).toContain("Pour 2 personnes, aucune proposition ne convient");
+    // 1 sur 5 = 20 % : pas un désaccord.
+    const few = analyze(data([...none(1), entry("d", null, answers(1, "c2"))]));
+    expect(qr(few, 1).divergences.some((t) => t.includes("aucune proposition"))).toBe(false);
+    expect(qr(analyze(data(none(2, 16))), 16).divergences.some((t) => t.includes("aucune proposition"))).toBe(false);
+    const matrix = analyze(data([entry("a", null, answers(5, "none")), entry("b", null, answers(5, "0-0"))]));
+    expect(qr(matrix, 5).divergences).toEqual([]);
+  });
+
+  test("paires opposées complémentaires (vérifiées par libellés), libellés « A » vs « B »", () => {
+    const a = analyze(data([entry("a", null, answers(1, "c1")), entry("b", null, answers(1, "c4"))]));
+    expect(qr(a, 1).divergences).toContain("« Une ambiance calme et détendue » vs « Une ambiance de grande fête »");
+    // Paires écartées : Q14 c1/c3 (trajet direct / plus long) et Q16 c2/c6 ne sont pas opposées.
+    const b = analyze(data([entry("a", null, { ...answers(14, "c1"), ...answers(16, "c2") }), entry("b", null, { ...answers(14, "c3"), ...answers(16, "c6") })]));
+    expect(qr(b, 14).divergences).toEqual([]);
+    expect(qr(b, 16).divergences).toEqual([]);
+    // Libellé modifié dans l'éditeur : la paire complémentaire est ignorée.
+    const changed: QuestionnaireVersion = { version: 1, questions: v1.questions.map((q) => (q.id === 1 ? { ...q, options: { ...q.options, c4: "Autre chose" } } : q)) };
+    const c = analyze({ versions: [changed], responses: [entry("a", null, answers(1, "c1")), entry("b", null, answers(1, "c4"))], organizer: null });
+    expect(qr(c, 1).divergences).toEqual([]);
+    // Q12 : paire stockée, toujours au nouveau format.
+    const d = analyze(data([entry("a", null, answers(12, "c1")), entry("b", null, answers(12, "c4"))]));
+    expect(qr(d, 12).divergences).toEqual(["« Un programme principalement libre » vs « Un programme bien rempli »"]);
+  });
+
+  test("seuil des risques : au moins 2 personnes et un tiers", () => {
+    const risks = (yes: number, total: number) => {
+      const list = Array.from({ length: total }, (_, i) => entry(`p${i}`, null, answers(16, i < yes ? "c3" : "c5")));
+      return qr(analyze(data(list)), 16).limits.find((l) => l.key === "c3")!;
+    };
+    expect(isNotableLimit(risks(2, 6))).toBe(true);
+    expect(isNotableLimit(risks(2, 7))).toBe(false);
+    expect(isNotableLimit(risks(1, 2))).toBe(false);
+    expect(risks(2, 6)).toMatchObject({ count: 2, answered: 6 });
   });
 
   test("exports : CSV (niveau, poids, exclus, anti-formule) et JSON", () => {

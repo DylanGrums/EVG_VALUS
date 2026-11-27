@@ -6,8 +6,7 @@
  * Anonymisation : aucun prénom de répondant n'est écrit ; les prénoms/pseudos des répondants cités
  * dans les commentaires sont remplacés par « [prénom] » (sauf Val/Valentin, sujet du questionnaire).
  */
-import { analyze, type QuestionResult } from "@/lib/questionnaire/analysis";
-import { matrixLabels } from "@/lib/questionnaire/definition";
+import { analyze, parseCell, type LimitItem, type QuestionResult } from "@/lib/questionnaire/analysis";
 import { formatPercent } from "@/lib/questionnaire/format";
 import { isVigilanceQuestion, REACTION, reactions, themes, type AdminData } from "@/lib/questionnaire/types";
 import { IMPORT_EXAMPLE } from "./import";
@@ -37,31 +36,53 @@ function rawShare(count: number, answered: number) {
   return answered ? count / answered : 0;
 }
 
+/** « 2 sur 3 » : avec peu de répondants, le pourcentage seul est trompeur. */
+const outOf = (count: number, answered: number) => `${count} sur ${answered}`;
+
 function choiceTable(result: QuestionResult) {
   const rows = [...result.choices].sort((a, b) => Number(a.special) - Number(b.special) || b.weight - a.weight || b.count - a.count);
   const lines = ["| Choix | Pondéré | Brut (personnes) |", "| --- | ---: | ---: |"];
   for (const c of rows) {
-    lines.push(`| ${cell(c.label)}${c.special ? " *(option générale)*" : ""} | ${pct(c.share)} | ${c.count} / ${result.answered} (${pct(rawShare(c.count, result.answered))}) |`);
+    lines.push(`| ${cell(c.label)}${c.special ? " *(option générale)*" : ""} | ${pct(c.share)} | ${outOf(c.count, c.answered)} (${pct(rawShare(c.count, c.answered))}) |`);
   }
   return lines.join("\n");
 }
 
-/** Matrice (question « Sensations et effort ») : une ligne par activité, une colonne par réaction. */
+/**
+ * Matrice (question « Sensations et effort ») : une ligne par activité, une colonne par réaction.
+ * Base de chaque ligne : les personnes ayant réagi à cette activité (+ « Je ne sais pas » globaux).
+ */
 function matrixTable(result: QuestionResult) {
-  const rows = matrixLabels(result.question);
-  const header = `| Activité | ${reactions.join(" | ")} |`;
-  const sep = `| --- |${reactions.map(() => " ---: |").join("")}`;
+  const header = `| Activité | Répondants | ${reactions.join(" | ")} |`;
+  const sep = `| --- | ---: |${reactions.map(() => " ---: |").join("")}`;
   const lines = [header, sep];
-  rows.forEach((label, i) => {
-    const values = reactions.map((_, j) => {
-      const c = result.choices.find((x) => x.key === `${i}-${j}`);
-      return c ? `${pct(c.share)} (${c.count})` : "—";
-    });
-    lines.push(`| ${cell(label)} | ${values.join(" | ")} |`);
-  });
+  for (const row of result.rows) {
+    const values = row.cells.map((c) => `${pct(c.share)} (${outOf(c.count, row.answered)})`);
+    lines.push(`| ${cell(row.label)} | ${row.answered} | ${values.join(" | ")} |`);
+  }
   const extra = result.choices.filter((c) => c.special && c.count > 0);
-  if (extra.length) lines.push("", ...extra.map((c) => `- ${c.label} : ${pct(c.share)} (${c.count} pers.)`));
-  return lines.join("\n") + "\n\n*Pourcentages pondérés, nombre brut de personnes entre parenthèses.*";
+  if (extra.length) lines.push("", ...extra.map((c) => `- ${c.label} (pour toutes les activités) : ${pct(c.share)} (${outOf(c.count, c.answered)})`));
+  return (
+    lines.join("\n") +
+    "\n\n*Pourcentages pondérés sur les personnes ayant réagi à l’activité (« Je ne sais pas » global compté dans chaque activité), nombre brut de personnes entre parenthèses.*"
+  );
+}
+
+/** Libellé d'un consensus : pour la matrice, « Activités en hauteur : il serait partant ». */
+function agreementLabel(r: QuestionResult, key: string) {
+  const c = parseCell(key);
+  const row = r.question.kind === "matrix" && c ? r.rows.find((x) => x.index === c.row) : undefined;
+  return row ? `${row.name} : il serait partant` : r.labels[key];
+}
+
+/** Ligne de refus d'une activité. */
+function refusalLine(r: QuestionResult, limit: LimitItem) {
+  const row = r.rows.find((x) => x.index === limit.row)!;
+  const cellText = (j: number, name: string) => `« ${name} » ${pct(row.cells[j].share)} (${outOf(row.cells[j].count, row.answered)})`;
+  return (
+    `- **${limit.label}** (${r.question.title}) : ${limit.detail}${limit.unanimous ? ", **quasi unanime**" : ""} — ` +
+    `${cellText(REACTION.dejaNon, "a déjà dit non")}, ${cellText(REACTION.nonPense, "je ne pense pas")}, ${cellText(REACTION.partant, "il serait partant")}.`
+  );
 }
 
 type Options = { now?: Date; includeOrganizer?: boolean; participantCount?: number | null };
@@ -101,53 +122,64 @@ export function buildResearchMarkdown(data: AdminData, { now = new Date(), inclu
     const text = `${r.question.title} ${r.question.prompt}`;
     if (/budget|prix|co[uû]t|d[ée]pense/i.test(text)) {
       const top = r.choices.filter((c) => c.count > 0).sort((a, b) => b.weight - a.weight).slice(0, 3);
-      return top.length ? [`${r.question.title} : ${top.map((c) => `${c.label} (${pct(c.share)})`).join(", ")}`] : [];
+      return top.length ? [`${r.question.title} : ${top.map((c) => `${c.label} (${pct(c.share)}, ${outOf(c.count, c.answered)})`).join(", ")}`] : [];
     }
+    const prefix = isVigilanceQuestion(r.question) ? "risque cité : " : "";
     return r.choices
       .filter((c) => c.count > 0 && /budget|d[ée]penses?|frais|cher/i.test(c.label))
-      .map((c) => `« ${c.label} » (${r.question.title}) : ${pct(c.share)} pondéré, ${c.count} / ${r.answered} pers.`);
+      .map((c) => `${prefix}« ${c.label} » (${r.question.title}) : ${pct(c.share)} pondéré, ${outOf(c.count, c.answered)} pers.`);
   });
   out.push(
     budgetLines.length
       ? `- **Budget** : pas de montant fixé ; signaux du questionnaire : ${budgetLines.join(" ; ")}.`
       : "- **Budget** : pas de question budget dans le questionnaire ; viser un budget raisonnable pour un groupe d’amis et donner des prix indicatifs.",
   );
-  const strong = analysis.byTheme.flatMap((t) => t.agreements.map((s) => `${s.label} (${pct(s.share)})`));
-  if (strong.length) out.push(`- **Convergences fortes** (≥ 75 % pondéré) : ${strong.join(" ; ")}.`);
+  // Consensus POSITIFS seulement (hors vigilance, refus et « ça dépend » de la matrice) : les accords sur des refus sont des limites.
+  const strong = analysis.results.flatMap((r) =>
+    r.agreements.map((key) => {
+      const c = r.choices.find((x) => x.key === key)!;
+      return `  - ${r.question.title} : ${agreementLabel(r, key)} (${pct(c.share)}, ${outOf(c.count, c.answered)})`;
+    }),
+  );
+  if (strong.length) out.push("- **Convergences fortes** (≥ 75 % pondéré, au moins 2 personnes) :", ...strong);
   for (const theme of analysis.byTheme) {
     if (theme.id === "limites" || !theme.signals.length) continue;
-    out.push(`- **${theme.name}** : ${theme.signals.map((s) => `${s.label} (${pct(s.share)})`).join(" ; ")}.`);
+    out.push(`- **${theme.name}** : ${theme.signals.map((s) => `${s.label} (${pct(s.share)}, ${outOf(s.count, s.answered)})`).join(" ; ")}.`);
+  }
+  // Questions du thème limites formulées en positif (Q6 « où il serait à l'aise ») : des critères à privilégier.
+  const limitResults = analysis.results.filter((r) => r.question.theme === "limites");
+  for (const r of limitResults.filter((x) => x.question.kind !== "matrix" && !isVigilanceQuestion(x.question))) {
+    const top = r.choices.filter((c) => !c.special && c.count > 0).sort((a, b) => b.weight - a.weight);
+    if (top.length) out.push(`- **${r.question.title}, à privilégier** : ${top.map((c) => `${c.label} (${pct(c.share)}, ${outOf(c.count, c.answered)})`).join(" ; ")}.`);
   }
   out.push("");
 
   // --- Limites ---
   out.push("## Limites et « non » forts", "");
-  out.push("À respecter strictement dans les propositions.", "");
-  const limitResults = analysis.results.filter((r) => r.question.theme === "limites");
+  const strict: string[] = [];
+  const soft: string[] = [];
   for (const r of limitResults) {
     if (r.question.kind === "matrix") {
-      const rows = matrixLabels(r.question);
-      rows.forEach((label, i) => {
-        const get = (j: number) => r.choices.find((c) => c.key === `${i}-${j}`);
-        const no = get(REACTION.dejaNon);
-        const doubt = get(REACTION.nonPense);
-        const yes = get(REACTION.partant);
-        if ((no?.count ?? 0) + (doubt?.count ?? 0) === 0) return;
-        out.push(
-          `- **${label}** : « a déjà dit non » ${pct(no?.share ?? 0)} (${no?.count ?? 0} pers.), « je ne pense pas » ${pct(doubt?.share ?? 0)} (${doubt?.count ?? 0}), ` +
-            `« il serait partant » ${pct(yes?.share ?? 0)} (${yes?.count ?? 0}).`,
+      for (const limit of r.limits) (limit.strict ? strict : soft).push(refusalLine(r, limit));
+    } else if (isVigilanceQuestion(r.question)) {
+      const risks = r.limits.filter((l) => l.share >= 1 / 3);
+      if (risks.length) {
+        soft.push(
+          `- **${r.question.title}** (risques cités) : ` +
+            risks.map((l) => `${l.label} (${pct(l.share)}, ${outOf(l.count, l.answered)}${l.unanimous ? ", quasi unanime" : ""})`).join(" ; ") +
+            ".",
         );
-      });
-    } else {
-      const top = r.choices.filter((c) => !c.special && c.count > 0).sort((a, b) => b.weight - a.weight);
-      const label = isVigilanceQuestion(r.question) ? r.question.title : `${r.question.title} (où il serait à l’aise : à privilégier)`;
-      if (top.length) out.push(`- **${label}** : ${top.map((c) => `${c.label} (${pct(c.share)}, ${c.count} pers.)`).join(" ; ")}.`);
+      }
     }
   }
-  const divergences = analysis.byTheme.flatMap((t) => t.divergences.map((d) => d.text));
-  if (divergences.length) out.push(`- **Avis partagés** (à manier avec prudence) : ${[...new Set(divergences)].join(" ; ")}.`);
+  out.push("### Refus connus (strict)", "", "À respecter strictement : aucune proposition ne doit aller contre.", "");
+  out.push(...(strict.length ? strict : ["- Aucun refus connu pour l’instant."]), "");
+  out.push("### Points de vigilance (préférences)", "", "Des préférences à prendre en compte autant que possible, pas des interdits.", "");
+  out.push(...(soft.length ? soft : ["- Aucun point de vigilance marqué pour l’instant."]), "");
+  const divergences = analysis.results.flatMap((r) => r.divergences.map((text) => `- **${r.question.title}** : ${text}`));
+  if (divergences.length) out.push("### Avis partagés (à manier avec prudence)", "", ...divergences, "");
   const limitComments = limitResults.flatMap((r) => r.comments.map((c) => c.text));
-  if (limitComments.length) out.push("", "Commentaires sur les limites :", "", ...limitComments.map(comment));
+  if (limitComments.length) out.push("Commentaires sur les limites et le confort :", "", ...limitComments.map(comment));
   if (!limitResults.some((r) => r.answered)) out.push("- Pas encore de réponse sur les limites.");
   out.push("");
 
@@ -189,7 +221,7 @@ Contexte : nous organisons l’enterrement de vie de garçon (EVG) de notre ami 
 Mission : mène une recherche approfondie et propose 5 à 8 villes ou lieux (France ou étranger) qui correspondent à son profil, avec pour chacun 4 à 10 événements ou activités concrets (fêtes, festivals, concerts, matchs, visites, expériences gastronomiques, nature, soirées…).
 
 Exigences :
-1. Respecte strictement la section « Limites et non forts » de la synthèse : aucune proposition qui va contre.
+1. Respecte strictement la sous-section « Refus connus (strict) » de la section « Limites et non forts » : aucune proposition qui va contre. Les « Points de vigilance (préférences) » sont des préférences : évite-les autant que possible et, si une proposition s’en approche, explique-le dans "pourquoi". Les critères « à privilégier » sont des situations où il serait à l’aise.
 2. Événements datés : uniquement s’ils ont lieu en mai 2027. Donne date_debut et date_fin (AAAA-MM-JJ) seulement si elles sont annoncées. Si les dates 2027 ne sont pas encore publiées, mets date_debut et date_fin à null et explique dans dates_texte (ex. « chaque année le 2e week-end de mai, dates 2027 non confirmées »). N’invente jamais de date.
 3. Sources vérifiables : chaque événement a un "lien" vers une source fiable (site officiel, office de tourisme, billetterie). N’invente aucun lien : si tu n’en as pas, mets null.
 4. Prix indicatifs en euros : prix_texte (ex. « 25 à 40 € / pers. ») et prix_min_eur (nombre). Pour chaque ville, budget_indicatif par personne pour le week-end, en précisant si les transports sont inclus.

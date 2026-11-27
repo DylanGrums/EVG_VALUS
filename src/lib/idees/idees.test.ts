@@ -244,19 +244,59 @@ describe("synthèse Markdown", () => {
     expect(md).toContain("mai 2027");
     expect(md).toContain("environ 8 participants");
     // c3 choisi par les deux : 100 % pondéré, 2 / 2 brut ; c4 : 1/(3+1) = 25 % pondéré, 1 / 2 brut.
-    expect(md).toMatch(/\| Une ambiance animée avec du monde \| 100 % \| 2 \/ 2 \(100 %\) \|/);
-    expect(md).toMatch(/\| Une ambiance de grande fête \| 25 % \| 1 \/ 2 \(50 %\) \|/);
+    expect(md).toMatch(/\| Une ambiance animée avec du monde \| 100 % \| 2 sur 2 \(100 %\) \|/);
+    expect(md).toMatch(/\| Une ambiance de grande fête \| 25 % \| 1 sur 2 \(50 %\) \|/);
     expect(md).toContain("## Limites et « non » forts");
-    expect(md).toMatch(/\*\*Les activités en hauteur\*\* : « a déjà dit non » 75 % \(1 pers\.\)/);
-    expect(md).toContain("Des dépenses élevées sur place");
+    // Refus regroupés par activité, quasi unanime (2 refus sur 2), « x sur N ».
+    expect(md).toContain(
+      "- **Activités en hauteur** (Sensations et effort) : 1 a déjà dit non, 1 ne pense pas, **quasi unanime** — « a déjà dit non » 75 % (1 sur 2), « je ne pense pas » 25 % (1 sur 2)",
+    );
+    // Matrice : base = répondants de l'activité (activité 2 : seule Bernadette a réagi).
+    expect(md).toMatch(/\| Les activités sur ou dans l’eau \| 1 \| 100 % \(1 sur 1\) \|/);
+    expect(md).toContain("risque cité : « Des dépenses élevées sur place » (Risques pour le séjour) : 100 % pondéré, 1 sur 1 pers.");
     expect(md).toContain("« Il adore quand [prénom] organise des soirées »");
     expect(md).toContain("Valentin a le vertige");
     for (const name of ["Bernadette", "Gérard", "Dupont"]) expect(md).not.toContain(name);
   });
 
+  test("convergences positives avec titre, Q6 à privilégier hors limites, refus strict / vigilance, avis partagés par question", () => {
+    const people: [string, ResponseEntry["answers"]][] = [
+      ["Alice", { 1: { choices: ["c1"], comment: "" }, 11: { choices: ["c1"], comment: "" }, 5: { choices: ["0-3", "1-0", "2-2"], comment: "" }, 6: { choices: ["c3"], comment: "" }, 12: { choices: ["c1"], comment: "" }, 16: { choices: ["c5"], comment: "" } }],
+      ["Bruno", { 1: { choices: ["c1"], comment: "" }, 11: { choices: ["c3"], comment: "" }, 5: { choices: ["0-0", "1-0", "2-0"], comment: "" }, 6: { choices: ["c3"], comment: "" }, 12: { choices: ["c4"], comment: "" }, 16: { choices: ["c5"], comment: "" } }],
+      ["Chloé", { 1: { choices: ["c1"], comment: "" }, 5: { choices: ["0-0", "1-0", "2-0"], comment: "" }, 6: { choices: ["c3"], comment: "" }, 16: { choices: ["c5"], comment: "" } }],
+    ];
+    const md = buildResearchMarkdown({ ...data, responses: people.map(([name, answers], i) => response(`p${i}`, name, null, answers)) }, { now: new Date("2026-11-27T12:00:00Z") });
+    const [criteria, rest] = md.split("## Limites et « non » forts");
+    const [limits] = rest.split("## Détail par question");
+    const q6 = seedQuestions.find((q) => q.id === 6)!;
+    // Convergences : positives, avec le titre de la question ; jamais Q16 (vigilance) ni un refus.
+    expect(criteria).toContain("  - Ambiance générale : Une ambiance calme et détendue (100 %, 3 sur 3)");
+    expect(criteria).toContain("  - Sensations et effort : Activités sur ou dans l’eau : il serait partant (100 %, 3 sur 3)");
+    const convergences = criteria.slice(criteria.indexOf("**Convergences fortes**")).split("\n- **")[0];
+    expect(convergences).not.toContain("Une ambiance d’EVG ressentie comme forcée");
+    expect(convergences).not.toContain("Activités en hauteur");
+    // Q6 (positive) : critère à privilégier, absente des limites.
+    expect(criteria).toContain(`- **${q6.title}, à privilégier** : ${q6.options.c3} (100 %, 3 sur 3)`);
+    expect(limits).not.toContain(q6.options.c3);
+    expect(limits).not.toContain(q6.title);
+    // Refus connus (au moins un « déjà non ») et vigilance (« je ne pense pas » minoritaire, risques ≥ 1/3).
+    const [strict, soft] = limits.split("### Points de vigilance (préférences)");
+    expect(strict).toContain("### Refus connus (strict)");
+    expect(strict).toContain("**Activités en hauteur** (Sensations et effort) : 1 a déjà dit non");
+    expect(soft).toContain("**Activités de vitesse** (Sensations et effort) : 1 ne pense pas");
+    expect(soft).toContain("Une ambiance d’EVG ressentie comme forcée (100 %, 3 sur 3, quasi unanime)");
+    // Avis partagés : une ligne par question, préfixée par son titre.
+    expect(soft).toContain("- **Rencontres et vie locale** : « Des moments réservés au groupe » vs « Des échanges spontanés avec d’autres personnes »");
+    expect(soft).toContain("- **Rythme du week-end** : « Un programme principalement libre » vs « Un programme bien rempli »");
+    expect(soft).toContain("- **Sensations et effort** : Activités en hauteur : « il serait partant » vs « il a déjà dit non »");
+    for (const name of ["Alice", "Bruno", "Chloé"]) expect(md).not.toContain(name);
+  });
+
   test("redaction et prompt", () => {
     expect(makeRedactor(["Jean-Mi", "Val"])("Jean-Mi et Val, jean-mi")).toBe("[prénom] et Val, [prénom]");
     const prompt = buildResearchPrompt({ participantCount: 6 });
+    expect(prompt).toContain("« Refus connus (strict) »");
+    expect(prompt).toContain("« Points de vigilance (préférences) »");
     expect(prompt).toContain('"villes"');
     expect(prompt).toContain("mai 2027");
     expect(prompt).toContain("environ 6 personnes");
