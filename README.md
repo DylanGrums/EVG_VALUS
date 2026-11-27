@@ -19,6 +19,7 @@ Stack : Next.js 16 (App Router, TypeScript), Tailwind v4, Drizzle ORM, Postgres 
 | `/admin/idees` | Gestion des idées : retenir, masquer, modifier, supprimer |
 | `/admin/idees/recherche` | Synthèse Markdown du questionnaire (`/admin/idees/recherche/synthese`) et prompt de recherche approfondie à copier |
 | `/admin/idees/import` | Import du JSON de la recherche (format : [docs/import-idees.md](docs/import-idees.md)) |
+| `/admin/stats` | Fréquentation (admins seulement) : en ligne, connexions et pages vues par jour, pages les plus vues, tableau par prénom ; `/admin/stats/<id>` : détail d’un prénom |
 
 L'app n'a pas de code d'accès : ne jamais envoyer le lien à quelqu'un qui pourrait le montrer à Valentin.
 Anciennes adresses conservées : `/orga/qui-es-tu` → `/qui-es-tu`, `/orga/bienvenue` → `/bienvenue`, `/rejoindre/...` → `/`.

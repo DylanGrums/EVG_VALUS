@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { ActivityBeacon } from "@/components/activity-beacon";
 
 export const metadata: Metadata = {
   title: { default: "Le carnet de l’EVG", template: "%s · Carnet de l’EVG" },
@@ -11,7 +12,10 @@ export const viewport: Viewport = { themeColor: "#24143e", width: "device-width"
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="fr">
-      <body className="font-sans">{children}</body>
+      <body className="font-sans">
+        {children}
+        <ActivityBeacon />
+      </body>
     </html>
   );
 }

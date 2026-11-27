@@ -27,6 +27,11 @@ export default function AdminHome() {
           <p className="mb-4 text-muted">Liste des prénoms du groupe et lien d’accès.</p>
           <LinkButton href="/admin/participants">Ouvrir</LinkButton>
         </Card>
+        <Card>
+          <h2 className="mb-2 text-xl">Fréquentation</h2>
+          <p className="mb-4 text-muted">Qui est en ligne, connexions et pages vues par prénom (invisible des membres).</p>
+          <LinkButton href="/admin/stats">Ouvrir</LinkButton>
+        </Card>
       </div>
     </Shell>
   );

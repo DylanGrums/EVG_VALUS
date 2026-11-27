@@ -120,6 +120,20 @@ Le questionnaire a déjà été envoyé et des réponses réelles sont en base :
 - **Navigation** commune aux pages membres (`src/components/app-nav.tsx`) : Accueil, Résultats, Orga, Idées, Sur place,
   puce du prénom (changer), lien Admin pour un organisateur connecté ; l'admin a un lien « ← L'app ».
 
+## Statistiques de fréquentation — admins seulement (décidé le 2026-11-27)
+
+- **Visibles uniquement des admins** (`/admin/stats`, détail par prénom, résumé dans `/admin/participants`) ; **aucune mention
+  côté membres** (ni lien, ni texte, ni donnée dans le HTML membre).
+- Suivi côté serveur, sans script tiers : le composant `ActivityBeacon` (layout racine) envoie à `/api/ping` une page vue à chaque
+  changement de route (navigations client comprises) et un signe de vie par minute si l'onglet est visible et utilisé.
+  L'identité vient uniquement du cookie signé `evg_member` ; chemins en liste blanche (`src/lib/analytics/paths.ts`) ;
+  `/admin`, préchargements et robots évidents ignorés. Best effort : une erreur ne casse jamais la page.
+- **Connexion = visite** : nouvelle connexion après **30 min** sans activité (on n'est jamais déconnecté, le prénom reste
+  mémorisé). **En ligne** = activité dans les **5 dernières minutes**.
+- Visiteurs sans prénom : comptés globalement, reconnus le temps d'une visite seulement (cookie httpOnly aléatoire `evg_v`,
+  30 min). Aucune IP ni user-agent stocké. Un admin connecté qui navigue côté membres compte comme le membre qu'il est.
+- Tables `visits` et `page_views` (migration additive `0003_analytics`).
+
 ## Choix techniques (décidés le 2026-11-25)
 
 Rework complet prévu de la version vanilla JS actuelle vers :

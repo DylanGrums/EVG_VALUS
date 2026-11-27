@@ -4,6 +4,10 @@ import { getDb } from "@/db";
 import { Badge, Button, Card, Hero, Input, LinkButton, Shell } from "@/components/ui";
 import { requireAdminPage } from "@/lib/orga/auth";
 import { listParticipants } from "@/lib/orga/participants";
+import { listMemberStats } from "@/lib/analytics/stats";
+import { formatAgo, formatParis } from "@/lib/analytics/format";
+import { OnlineDot } from "../stats/_components/bits";
+import Link from "next/link";
 import { ActionForm, ConfirmButton, CopyButton, SubmitButton } from "@/app/orga/_components/forms";
 import { addParticipantAction, removeParticipantAction, renameParticipantAction, restoreParticipantAction, setAttendingAction } from "./actions";
 
@@ -19,7 +23,10 @@ async function origin() {
 
 export default async function Participants() {
   await requireAdminPage();
-  const people = await listParticipants(await getDb(), { includeInactive: true });
+  const db = await getDb();
+  const now = new Date();
+  const [people, activity] = await Promise.all([listParticipants(db, { includeInactive: true }), listMemberStats(db, now)]);
+  const activityById = new Map(activity.map((a) => [a.participantId, a]));
   const active = people.filter((p) => p.active);
   const removed = people.filter((p) => !p.active);
   const attending = active.filter((p) => p.attending);
@@ -89,6 +96,7 @@ export default async function Participants() {
                   Retirer
                 </ConfirmButton>
               </ActionForm>
+              <Activity stats={activityById.get(p.id)} id={p.id} now={now} />
             </li>
           ))}
         </ul>
@@ -101,7 +109,10 @@ export default async function Participants() {
           <ul className="space-y-2">
             {removed.map((p) => (
               <li key={p.id} className="flex items-center justify-between gap-2">
-                <Badge>{p.name}</Badge>
+                <span className="flex flex-wrap items-center gap-2">
+                  <Badge>{p.name}</Badge>
+                  <Activity stats={activityById.get(p.id)} id={p.id} now={now} />
+                </span>
                 <ActionForm action={restoreParticipantAction}>
                   <input type="hidden" name="participantId" value={p.id} />
                   <Button type="submit" variant="ghost" className="py-1.5">
@@ -114,5 +125,25 @@ export default async function Participants() {
         </Card>
       )}
     </Shell>
+  );
+}
+
+/** Fréquentation d'un prénom (admin seulement) : en ligne, dernière connexion, nombre de connexions, lien vers le détail. */
+function Activity({ stats, id, now }: { stats?: { online: boolean; lastSeenAt: Date | null; visits: number }; id: string; now: Date }) {
+  const online = stats?.online ?? false;
+  const visits = stats?.visits ?? 0;
+  return (
+    <span className="flex w-full flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
+      <OnlineDot online={online} />
+      <span title={stats?.lastSeenAt ? formatParis(stats.lastSeenAt) : undefined}>
+        {online ? <strong className="text-ok">En ligne</strong> : <>Dernière connexion : {formatAgo(stats?.lastSeenAt, now)}</>}
+      </span>
+      <span>
+        · {visits} connexion{visits > 1 ? "s" : ""}
+      </span>
+      <Link href={`/admin/stats/${id}`} className="font-semibold text-brand underline">
+        Détail
+      </Link>
+    </span>
   );
 }
