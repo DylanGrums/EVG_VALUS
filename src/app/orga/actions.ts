@@ -15,8 +15,8 @@ import { commentSchema, firstError, isUuid, parseOptionForm } from "@/lib/orga/v
 import { toggleVote } from "@/lib/orga/votes";
 
 function refresh() {
-  revalidatePath("/orga", "layout");
-  revalidatePath("/admin/orga", "layout");
+  // Toute l'app membres (accueil, orga, résultats…) dépend du prénom et des votes.
+  revalidatePath("/", "layout");
 }
 
 /** Résultat d'une action d'identification : le client mémorise ce prénom dans le localStorage. */
@@ -46,13 +46,17 @@ export async function restoreParticipantAction(participantId: string): Promise<I
   return identify(participantId);
 }
 
-/** Premier passage : la personne entre son prénom, on l'ajoute à la liste du groupe. */
+/**
+ * Premier passage : la personne entre son prénom, on l'ajoute à la liste du groupe.
+ * « Tu fais partie du week-end ? » : oui = participant (compte dans le prix par personne), non = proche.
+ */
 export async function registerAction(_: IdentityState, form: FormData): Promise<IdentityState> {
+  const attending = form.get("attending");
+  if (attending !== "oui" && attending !== "non") return { error: "Dis-nous si tu fais partie du week-end." };
   try {
-    const participant = await registerSelf(await getDb(), String(form.get("name") ?? ""));
+    const participant = await registerSelf(await getDb(), String(form.get("name") ?? ""), { attending: attending === "oui" });
     await setMember(participant.id);
     refresh();
-    revalidatePath("/admin/participants");
     return { ok: true, participant: { id: participant.id, name: participant.name } };
   } catch (error) {
     if (error instanceof NameTakenError) return { error: error.message, taken: error.existing };

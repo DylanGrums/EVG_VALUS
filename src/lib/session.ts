@@ -5,7 +5,7 @@ import { timingSafeEqual } from "node:crypto";
 /**
  * Sessions par cookies signés (JWT HS256).
  * - evg_admin  : organisateur connecté via ADMIN_PASSWORD (/admin/connexion).
- * - evg_member : prénom choisi sur /orga (participantId).
+ * - evg_member : prénom choisi une fois sur /qui-es-tu (participantId), valable pour toute l'app.
  * L'orga est ouverte à qui a l'adresse du site : Valentin ne doit jamais la recevoir.
  */
 const ADMIN_COOKIE = "evg_admin";

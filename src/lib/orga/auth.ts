@@ -4,6 +4,7 @@
  */
 import { redirect } from "next/navigation";
 import { getDb } from "@/db";
+import { identifyHref } from "@/lib/nav";
 import { getMember, isAdmin } from "@/lib/session";
 import { OrgaError } from "./errors";
 import { getActiveParticipant } from "./participants";
@@ -18,7 +19,7 @@ export async function currentMember() {
 /** Pour les server actions des membres : renvoie le participant de la session ou lève une erreur. */
 export async function requireParticipant() {
   const { participant } = await currentMember();
-  if (!participant) throw new OrgaError("Session expirée : choisis ton prénom sur /orga.");
+  if (!participant) throw new OrgaError("Session expirée : choisis ton prénom sur l’accueil.");
   return participant;
 }
 
@@ -28,12 +29,12 @@ export async function requireAdmin() {
 }
 
 /**
- * Pour les pages /orga/** (le layout ne suffit pas : chaque page revérifie).
- * Prénom non choisi (ou retiré) → « Qui es-tu ? ».
+ * Pour les pages membres (accueil, /orga/**, /idees/**… : le layout ne suffit pas, chaque page revérifie).
+ * Prénom non choisi (ou retiré) → « Qui es-tu ? », puis retour vers `next` (chemin interne) si fourni.
  */
-export async function requireMemberPage() {
+export async function requireMemberPage(next?: string) {
   const { participant } = await currentMember();
-  if (!participant) redirect("/orga/qui-es-tu");
+  if (!participant) redirect(identifyHref(next));
   return participant;
 }
 

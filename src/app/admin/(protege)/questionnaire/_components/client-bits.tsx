@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { Button, Select } from "@/components/ui";
 import { KNOWLEDGE_LEVELS, knowledgeLabels, type KnowledgeLevel } from "@/lib/questionnaire/types";
-import { deleteParticipationAction, setExcludedAction, setKnowledgeAction } from "../actions";
+import { deleteParticipationAction, linkParticipationAction, setExcludedAction, setKnowledgeAction } from "../actions";
 
 /** Rafraîchit les données du tableau de bord toutes les 15 s (onglet visible uniquement). */
 export function AutoRefresh({ every = 15000 }: { every?: number }) {
@@ -125,5 +125,65 @@ export function ParticipationActions({ id, name, excluded, onDeleteRedirect }: {
       </div>
       {error && <p className="text-sm text-danger">{error}</p>}
     </div>
+  );
+}
+
+/** Suppression directe depuis la liste des réponses (doublons de test…), avec confirmation. */
+export function DeleteParticipationButton({ id, name }: { id: string; name: string }) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const [error, setError] = useState("");
+  return (
+    <span className="inline-flex flex-col gap-1">
+      <Button
+        variant="danger"
+        className="px-3 py-1.5"
+        disabled={pending}
+        onClick={() => {
+          if (!confirm(`Supprimer définitivement la participation de ${name || "cette personne"} ? Cette action est irréversible.`)) return;
+          start(async () => {
+            const result = await deleteParticipationAction(id);
+            setError(result.ok ? "" : (result.message ?? "Échec."));
+            router.refresh();
+          });
+        }}
+      >
+        {pending ? "Suppression…" : "Supprimer"}
+      </Button>
+      {error && <span className="text-xs text-danger">{error}</span>}
+    </span>
+  );
+}
+
+/** Rattacher la réponse à un prénom de la liste, ou la détacher. */
+export function OwnerSelect({ id, value, people }: { id: string; value: string | null; people: { id: string; name: string; active: boolean }[] }) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const [error, setError] = useState("");
+  return (
+    <span className="inline-flex flex-col gap-1">
+      <Select
+        aria-label="Prénom rattaché"
+        disabled={pending}
+        value={value ?? ""}
+        onChange={(event) => {
+          const participantId = event.target.value || null;
+          start(async () => {
+            const result = await linkParticipationAction(id, participantId);
+            setError(result.ok ? "" : (result.message ?? "Échec."));
+            router.refresh();
+          });
+        }}
+      >
+        <option value="">Non rattachée</option>
+        {people.map((p) => (
+          <option key={p.id} value={p.id}>
+            {p.name}
+            {p.active ? "" : " (retiré)"}
+          </option>
+        ))}
+      </Select>
+      {error && <span className="text-xs text-danger">{error}</span>}
+    </span>
   );
 }

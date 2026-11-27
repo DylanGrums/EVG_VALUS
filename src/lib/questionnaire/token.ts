@@ -9,3 +9,10 @@ export const newToken = () => randomBytes(32).toString("hex");
 export const isToken = (value: unknown): value is string => typeof value === "string" && TOKEN_FORMAT.test(value);
 /** L'identifiant en base est l'empreinte du jeton : une fuite de la base ne permet pas de reprendre une participation. */
 export const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");
+
+/** Empreinte du jeton de reprise de ce navigateur (cookie httpOnly), ou null. Côté serveur uniquement. */
+export async function browserParticipationId(): Promise<string | null> {
+  const { cookies } = await import("next/headers");
+  const token = (await cookies()).get(PARTICIPATION_COOKIE)?.value;
+  return isToken(token) ? hashToken(token) : null;
+}

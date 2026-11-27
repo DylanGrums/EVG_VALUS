@@ -1,0 +1,3 @@
+ALTER TABLE "questionnaire_participations" ADD COLUMN "participant_id" uuid;--> statement-breakpoint
+ALTER TABLE "participants" ADD COLUMN "attending" boolean DEFAULT true NOT NULL;--> statement-breakpoint
+ALTER TABLE "questionnaire_participations" ADD CONSTRAINT "questionnaire_participations_participant_id_participants_id_fk" FOREIGN KEY ("participant_id") REFERENCES "public"."participants"("id") ON DELETE set null ON UPDATE no action;

@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getDb } from "@/db";
 import { isAdmin } from "@/lib/session";
-import { publishVersion, removeParticipation, saveOrganizer, setExcluded, setKnowledge } from "@/lib/questionnaire/store";
+import { isUuid } from "@/lib/orga/validation";
+import { publishVersion, removeParticipation, saveOrganizer, setExcluded, setKnowledge, setParticipationOwner } from "@/lib/questionnaire/store";
 import { isKnowledge, type SaveResult } from "@/lib/questionnaire/types";
 
 /** Chaque action revérifie la session organisateur : le layout seul ne suffit pas pour une server action. */
@@ -12,7 +13,8 @@ async function guard() {
   if (!(await isAdmin())) throw new Error("Session organisateur requise.");
 }
 
-const refresh = () => revalidatePath("/admin/questionnaire", "layout");
+// L'accueil des membres affiche les tendances et l'état du questionnaire : on rafraîchit toute l'app.
+const refresh = () => revalidatePath("/", "layout");
 const isId = (value: unknown): value is string => typeof value === "string" && /^[a-f0-9]{64}$/.test(value);
 
 type Outcome = { ok: boolean; message?: string };
@@ -42,6 +44,15 @@ export async function deleteParticipationAction(id: string, redirectToList = fal
   refresh();
   if (ok && redirectToList) redirect("/admin/questionnaire");
   return ok ? { ok } : { ok, message: "Participation introuvable." };
+}
+
+/** Rattache une réponse à un prénom de la liste (participantId) ou la détache (null). */
+export async function linkParticipationAction(id: string, participantId: string | null): Promise<Outcome> {
+  await guard();
+  if (!isId(id) || (participantId !== null && !isUuid(participantId))) return { ok: false, message: "Demande invalide." };
+  const ok = await setParticipationOwner(await getDb(), id, participantId);
+  refresh();
+  return ok ? { ok } : { ok, message: "Réponse ou prénom introuvable." };
 }
 
 export async function publishAction(version: number, questions: unknown): Promise<{ ok: true; version: number } | { ok: false; message: string }> {

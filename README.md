@@ -8,11 +8,20 @@ Stack : Next.js 16 (App Router, TypeScript), Tailwind v4, Drizzle ORM, Postgres 
 
 | Adresse | Pour qui |
 | --- | --- |
-| `/questionnaire` | Questionnaire « profil de Val » : lien direct à envoyer aux proches (`/` y redirige) |
-| `/orga` | Espace des participants, à partager uniquement dans leur groupe. Premier passage : prénom, puis « répondre au questionnaire » ou « passer ». Votes, propositions, commentaires, carnet sur place |
+| `/` | Accueil de l'app : questionnaire à faire ou à reprendre, tendances anonymes du questionnaire, aperçu de l'orga |
+| `/qui-es-tu` | Identification unique (prénom + « tu fais partie du week-end ? ») ; `?suite=/chemin` pour y revenir ensuite |
+| `/bienvenue` | Juste après l'inscription : « Répondre au questionnaire » ou « Passer » |
+| `/questionnaire` | Questionnaire « profil de Val » (lien déjà envoyé : sans prénom, identification d'abord puis retour ici ; le brouillon du navigateur est retrouvé) |
+| `/resultats` | Tendances anonymes du questionnaire (à partir de 3 réponses envoyées) |
+| `/orga`, `/orga/sur-place` | Votes, propositions, commentaires ; carnet sur place |
+| `/idees` | Module « Idées » (fourni à part, lien dans la navigation) |
 | `/admin` | Espace organisateurs (mot de passe `ADMIN_PASSWORD`) |
 
-L'orga n'a pas de code d'accès : ne jamais envoyer le lien `/orga` à quelqu'un qui pourrait le montrer à Valentin. Les anciens liens `/rejoindre/...` redirigent vers `/orga`.
+L'app n'a pas de code d'accès : ne jamais envoyer le lien à quelqu'un qui pourrait le montrer à Valentin.
+Anciennes adresses conservées : `/orga/qui-es-tu` → `/qui-es-tu`, `/orga/bienvenue` → `/bienvenue`, `/rejoindre/...` → `/`.
+
+Navigation commune des pages membres : `src/components/app-nav.tsx` (`<AppNav />`, composant serveur à placer en haut de page ;
+barre d'onglets en bas sur mobile, en-tête sur desktop, lien « Admin » pour un organisateur connecté).
 
 ## Développement local
 
@@ -30,7 +39,7 @@ Puis ouvrir http://localhost:3000. Sans `.env.local`, tout fonctionne avec des v
 
 - base PGlite (Postgres embarqué) dans `.data/pglite`, migrations appliquées automatiquement au démarrage ;
 - mot de passe admin : `organisateur-local` ;
-- espace des participants : http://localhost:3000/orga
+- accueil (identification au premier passage) : http://localhost:3000/
 
 Pour personnaliser, copier `.env.example` en `.env.local`.
 
@@ -59,8 +68,8 @@ Pour repartir d'une base locale vide : arrêter le serveur et supprimer le dossi
    - `ADMIN_PASSWORD` : mot de passe des organisateurs, à transmettre aux co-orgas
      (pour le changer : `scripts/changer-mdp-admin.ps1`, puis redéployer).
 5. **Déployer** : *Deployments → Redeploy* (ou un `git push`). Le premier build crée les tables dans Neon.
-6. **Vérifier** : ouvrir `https://<projet>.vercel.app/admin`, se connecter, puis ouvrir `/orga` pour tester l'inscription. Ouvrir `/questionnaire` dans une fenêtre privée.
-7. **Partager** : `/questionnaire` aux proches de Val ; le lien `/orga` dans le groupe des participants uniquement.
+6. **Vérifier** : ouvrir `https://<projet>.vercel.app/admin`, se connecter, puis ouvrir `/` dans une fenêtre privée pour tester l'inscription et le questionnaire.
+7. **Partager** : l'adresse du site (`/`) aux participants et aux proches de Val (le lien `/questionnaire` déjà envoyé reste valable), jamais à Valentin.
 
 Ensuite, chaque `git push` sur `main` redéploie automatiquement (avec migrations).
 

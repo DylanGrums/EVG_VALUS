@@ -10,7 +10,7 @@ import { PhaseBadge } from "../_components/views";
 export const metadata: Metadata = { title: "Préparation" };
 
 export default async function OrgaHome() {
-  const me = await requireMemberPage();
+  const me = await requireMemberPage("/orga");
   const topics = await listTopicSummaries(await getDb(), { participantId: me.id });
   const decided = topics.filter((t) => t.phase === "decide").length;
   const open = topics.filter((t) => t.phase === "ouvert");

@@ -7,16 +7,19 @@ import { analyze } from "@/lib/questionnaire/analysis";
 import { STATUSES, filterResponses, parseFilters, statusLabels, statusOf } from "@/lib/questionnaire/filters";
 import { formatDate } from "@/lib/questionnaire/format";
 import { loadAdminData } from "@/lib/questionnaire/store";
+import { listParticipants } from "@/lib/orga/participants";
 import { KNOWLEDGE_LEVELS, knowledgeLabels, weightOf } from "@/lib/questionnaire/types";
 import { AnalysisView, LevelBadge } from "./_components/analysis-view";
-import { AutoRefresh, CopyLink, KnowledgeSelect } from "./_components/client-bits";
+import { AutoRefresh, CopyLink, DeleteParticipationButton, KnowledgeSelect } from "./_components/client-bits";
 
 export const metadata = { title: "Questionnaire" };
 
 export default async function QuestionnaireDashboard({ searchParams }: PageProps<"/admin/questionnaire">) {
   if (!(await isAdmin())) throw new Error("Session organisateur requise.");
   const filters = parseFilters(await searchParams);
-  const data = await loadAdminData(await getDb());
+  const db = await getDb();
+  const [data, people] = await Promise.all([loadAdminData(db), listParticipants(db, { includeInactive: true })]);
+  const names = new Map(people.map((p) => [p.id, p.name]));
 
   const h = await headers();
   const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
@@ -109,11 +112,15 @@ export default async function QuestionnaireDashboard({ searchParams }: PageProps
                   <Badge tone={statusOf(entry) === "Terminée" ? "ok" : statusOf(entry) === "Exclue" ? "danger" : "neutral"}>{statusOf(entry)}</Badge>{" "}
                   {entry.submittedAt && <LevelBadge level={entry.knowledge} />}
                   <div className="text-xs text-muted">
+                    {entry.participantId ? `↔ ${names.get(entry.participantId) ?? "?"} · ` : "Non rattachée · "}
                     Version {entry.version} · {formatDate(entry.submittedAt ?? entry.updatedAt)}
                     {entry.submittedAt && ` · poids ${weightOf(entry.knowledge)}`}
                   </div>
                 </div>
-                {entry.submittedAt && <KnowledgeSelect id={entry.id} value={entry.knowledge} compact />}
+                <div className="flex flex-wrap items-start gap-2">
+                  {entry.submittedAt && <KnowledgeSelect id={entry.id} value={entry.knowledge} compact />}
+                  <DeleteParticipationButton id={entry.id} name={entry.name} />
+                </div>
               </li>
             ))}
           </ul>

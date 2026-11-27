@@ -1,7 +1,7 @@
 /** Participants du groupe : liste des prénoms gérée par les organisateurs. */
 import { and, asc, count, eq, sql } from "drizzle-orm";
 import type { DB } from "@/db";
-import { optionVotes, orgaComments, participants, topicOptions } from "@/db/schema";
+import { optionVotes, orgaComments, participants, questionnaireParticipations, topicOptions } from "@/db/schema";
 import { OrgaError } from "./errors";
 import { participantNameSchema } from "./validation";
 
@@ -29,8 +29,12 @@ export async function listParticipants(db: DB, { includeInactive = false } = {})
   return rows;
 }
 
+/**
+ * Nombre de personnes qui viennent au week-end (actives ET `attending`) : base du prix par personne et du
+ * décompte « participants ». Les proches (famille, compagne…) ne comptent pas.
+ */
 export async function countActiveParticipants(db: DB) {
-  const [row] = await db.select({ n: count() }).from(participants).where(eq(participants.active, true));
+  const [row] = await db.select({ n: count() }).from(participants).where(and(eq(participants.active, true), eq(participants.attending, true)));
   return row?.n ?? 0;
 }
 
@@ -74,14 +78,14 @@ export class NameTakenError extends OrgaError {
  * Contrairement à addParticipant (admin), on ne réactive jamais une personne retirée par les orgas :
  * on crée une nouvelle fiche. Un prénom déjà actif est refusé (NameTakenError).
  */
-export async function registerSelf(db: DB, name: string) {
+export async function registerSelf(db: DB, name: string, { attending = true }: { attending?: boolean } = {}) {
   const clean = parseName(name);
   const [taken] = await db
     .select({ id: participants.id, name: participants.name })
     .from(participants)
     .where(and(eq(participants.active, true), sql`lower(${participants.name}) = lower(${clean})`));
   if (taken) throw new NameTakenError(taken.name, taken);
-  const [row] = await db.insert(participants).values({ name: clean }).returning();
+  const [row] = await db.insert(participants).values({ name: clean, attending }).returning();
   return row;
 }
 
@@ -93,12 +97,22 @@ export async function renameParticipant(db: DB, id: string, name: string) {
   return row;
 }
 
-/** A-t-il déjà laissé une trace (vote, commentaire, proposition) ? */
+/** Vient au week-end (true) ou proche (false) : modifiable par les organisateurs. */
+export async function setParticipantAttending(db: DB, id: string, attending: boolean) {
+  const rows = await db.update(participants).set({ attending }).where(eq(participants.id, id)).returning({ id: participants.id });
+  if (!rows.length) throw new OrgaError("Participant introuvable.");
+}
+
+/** A-t-il déjà laissé une trace (vote, commentaire, proposition, questionnaire rattaché) ? */
 async function hasActivity(db: DB, id: string) {
   const [votes] = await db.select({ n: count() }).from(optionVotes).where(eq(optionVotes.participantId, id));
   const [comments] = await db.select({ n: count() }).from(orgaComments).where(eq(orgaComments.authorId, id));
   const [options] = await db.select({ n: count() }).from(topicOptions).where(eq(topicOptions.proposedById, id));
-  return (votes?.n ?? 0) + (comments?.n ?? 0) + (options?.n ?? 0) > 0;
+  const [answers] = await db
+    .select({ n: count() })
+    .from(questionnaireParticipations)
+    .where(and(eq(questionnaireParticipations.participantId, id), eq(questionnaireParticipations.deleted, false)));
+  return (votes?.n ?? 0) + (comments?.n ?? 0) + (options?.n ?? 0) + (answers?.n ?? 0) > 0;
 }
 
 /**

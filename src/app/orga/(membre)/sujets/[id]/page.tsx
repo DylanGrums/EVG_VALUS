@@ -16,8 +16,8 @@ import { CommentForm, CommentList, OptionFacts, OptionFields, PhaseBadge, PriceB
 export const metadata: Metadata = { title: "Sujet" };
 
 export default async function SujetPage({ params }: PageProps<"/orga/sujets/[id]">) {
-  const me = await requireMemberPage();
   const { id } = await params;
+  const me = await requireMemberPage(isUuid(id) ? `/orga/sujets/${id}` : "/orga");
   if (!isUuid(id)) notFound();
   const view = await loadTopicView(await getDb(), id, me.id);
   if (!view) notFound();

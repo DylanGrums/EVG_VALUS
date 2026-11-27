@@ -18,10 +18,12 @@ type Props = {
   save: (draft: Draft, revision: number, submit: boolean) => Promise<SaveResult>;
   startAnother?: () => Promise<void>;
   backHref?: string;
-  /** Prénom pré-rempli (membre du groupe arrivé depuis l'orga). */
-  initialName?: string;
-  /** Lien de retour vers l'espace orga, affiché aux membres du groupe. */
-  orgaHref?: string;
+  /** Prénom du membre identifié : imposé (le serveur l'impose aussi), pas de champ à ressaisir. */
+  memberName?: string;
+  /** Lien « Ce n'est pas toi ? » vers l'identification. */
+  changeNameHref?: string;
+  /** Où aller automatiquement une fois les réponses envoyées (accueil). */
+  doneHref?: string;
 };
 
 const answered = (answer?: Answer) => Boolean(answer && (answer.choices.length || answer.comment.trim()));
@@ -37,10 +39,13 @@ function choiceLabel(question: PublicQuestion, key: string) {
 
 const optionClass = "flex cursor-pointer items-start gap-3 rounded-xl border border-line bg-panel p-3.5 has-[:checked]:border-brand has-[:checked]:bg-brand-light";
 
-export function Survey({ mode, version, questions, initialDraft, initialRevision, initialSubmitted, save, startAnother, backHref, initialName, orgaHref }: Props) {
+export function Survey({ mode, version, questions, initialDraft, initialRevision, initialSubmitted, save, startAnother, backHref, memberName, changeNameHref, doneHref }: Props) {
   const organizer = mode === "organizer";
   const router = useRouter();
-  const [draft, setDraft] = useState<Draft>(() => initialDraft ?? { version, name: organizer ? "Organisateur" : (initialName ?? ""), step: 0, answers: {} });
+  const [draft, setDraft] = useState<Draft>(() => {
+    const start = initialDraft ?? { version, name: organizer ? "Organisateur" : "", step: 0, answers: {} };
+    return memberName ? { ...start, name: memberName } : start;
+  });
   const [done, setDone] = useState(initialSubmitted);
   const [lost, setLost] = useState(false);
   const [status, setStatus] = useState<{ text: string; error?: boolean }>({ text: "" });
@@ -102,6 +107,11 @@ export function Survey({ mode, version, questions, initialDraft, initialRevision
         finished.current = true;
         setDone(true);
         setStatus({ text: "Réponse envoyée." });
+        // Retour automatique à l'accueil (qui affiche un message de remerciement).
+        if (doneHref) {
+          router.replace(doneHref);
+          router.refresh();
+        }
       } else {
         setStatus({ text: saved.current === JSON.stringify(latest.current) ? "Brouillon enregistré." : "Modifications en cours…" });
       }
@@ -177,14 +187,16 @@ export function Survey({ mode, version, questions, initialDraft, initialRevision
         <Hero kicker="Questionnaire" title="Merci pour ton avis !">
           <p>Tes réponses ont bien été transmises. Elles vont aider à imaginer un week-end qui lui ressemble.</p>
         </Hero>
-        {orgaHref && (
-          <LinkButton href={orgaHref} className="w-full sm:w-auto">
-            Retour à l’orga
+        <div className="flex flex-col gap-2.5 sm:flex-row">
+          <LinkButton href="/" className="sm:flex-1">
+            Retour à l’accueil
           </LinkButton>
-        )}
-        <Button variant="secondary" onClick={another}>
-          Répondre pour une autre personne
-        </Button>
+          {changeNameHref && (
+            <LinkButton href={changeNameHref} variant="secondary" className="sm:flex-1">
+              Ce n’est pas toi ? Changer de prénom
+            </LinkButton>
+          )}
+        </div>
       </div>
     );
   }
@@ -217,21 +229,32 @@ export function Survey({ mode, version, questions, initialDraft, initialRevision
             <h2 ref={heading} tabIndex={-1} className="text-xl">
               {organizer ? "Réponses de l’organisateur" : "Avant de commencer"}
             </h2>
-            <Field label="Ton prénom ou pseudonyme">
-              <Input
-                name="name"
-                maxLength={60}
-                required
-                autoComplete="nickname"
-                value={draft.name}
-                onChange={(event) => update((d) => ({ ...d, name: event.target.value }))}
-              />
-            </Field>
+            {memberName ? (
+              <p className="rounded-xl bg-paper p-3.5">
+                Tu réponds en tant que <strong>{memberName}</strong>.{" "}
+                {changeNameHref && (
+                  <Link href={changeNameHref} className="text-sm font-semibold text-brand underline">
+                    Ce n’est pas toi ?
+                  </Link>
+                )}
+              </p>
+            ) : (
+              <Field label="Ton prénom ou pseudonyme">
+                <Input
+                  name="name"
+                  maxLength={60}
+                  required
+                  autoComplete="nickname"
+                  value={draft.name}
+                  onChange={(event) => update((d) => ({ ...d, name: event.target.value }))}
+                />
+              </Field>
+            )}
             <div className="flex flex-wrap items-center justify-between gap-3">
               {back ||
-                (orgaHref ? (
-                  <Link href={orgaHref} className="text-sm font-semibold text-brand underline">
-                    Plus tard, aller à l’orga
+                (memberName ? (
+                  <Link href="/" className="text-sm font-semibold text-brand underline">
+                    Plus tard, aller à l’accueil
                   </Link>
                 ) : (
                   <span />
@@ -243,7 +266,7 @@ export function Survey({ mode, version, questions, initialDraft, initialRevision
         </Card>
         {!organizer && (
           <p className="text-sm text-muted">
-            {questions.length} questions, environ cinq minutes. Seul l’organisateur peut lire tes réponses. Tu peux revenir plus tard avec ce navigateur : ton brouillon est enregistré au fur et à mesure.
+            {questions.length} questions, environ cinq minutes. Seul l’organisateur peut lire tes réponses ; le groupe ne voit que des tendances anonymes (sans prénoms ni commentaires), à partir de trois réponses. Tu peux revenir plus tard avec ce navigateur : ton brouillon est enregistré au fur et à mesure.
           </p>
         )}
       </div>
@@ -262,18 +285,6 @@ export function Survey({ mode, version, questions, initialDraft, initialRevision
     </div>
   );
 
-  const another2 = !organizer && (
-    <Button
-      variant="ghost"
-      className="w-full"
-      onClick={() => {
-        if (confirm("Ouvrir un autre questionnaire ? Le brouillon courant ne sera plus accessible sur cet appareil.")) void another();
-      }}
-    >
-      Répondre pour une autre personne
-    </Button>
-  );
-
   // --- Relecture ---
   if (draft.step === last) {
     const missing = questions.find((q) => !q.optional && !answered(draft.answers[q.id]));
@@ -287,9 +298,11 @@ export function Survey({ mode, version, questions, initialDraft, initialRevision
           </h2>
           <p>
             Prénom ou pseudonyme : <strong>{draft.name || "—"}</strong>{" "}
-            <button type="button" className="text-sm font-semibold text-brand underline" onClick={() => go(0)}>
-              Modifier
-            </button>
+            {!memberName && (
+              <button type="button" className="text-sm font-semibold text-brand underline" onClick={() => go(0)}>
+                Modifier
+              </button>
+            )}
           </p>
           {!organizer && (
             <p className="text-muted">
@@ -329,7 +342,6 @@ export function Survey({ mode, version, questions, initialDraft, initialRevision
           {statusLine}
           {back}
         </Card>
-        {another2}
       </div>
     );
   }
@@ -441,7 +453,6 @@ export function Survey({ mode, version, questions, initialDraft, initialRevision
         {statusLine}
         {back}
       </Card>
-      {another2}
     </div>
   );
 }

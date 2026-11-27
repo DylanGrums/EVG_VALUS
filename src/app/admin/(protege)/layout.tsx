@@ -11,6 +11,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
   return (
     <>
       <SiteHeader href="/admin">
+        <Link className={link} href="/" title="Retour à l’app des membres">← L’app</Link>
         <Link className={link} href="/admin/questionnaire">Questionnaire</Link>
         <Link className={link} href="/admin/orga">Orga</Link>
         <Link className={link} href="/admin/participants">Participants</Link>

@@ -88,6 +88,8 @@ export type ResponseEntry = {
   updatedAt: string | null;
   excluded: boolean;
   knowledge: KnowledgeLevel | null;
+  /** Prénom du groupe auquel la réponse est rattachée (admin uniquement). */
+  participantId?: string | null;
 };
 export type OrganizerEntry = {
   version: number;

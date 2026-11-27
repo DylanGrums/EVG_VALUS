@@ -12,9 +12,9 @@ organisation de l'EVG), rôles, contraintes et choix techniques décidés. [READ
   `cacheComponents` est désactivé.
 - Organisation du code :
   - `src/db/` : client (`getDb`, `createTestDb`) et schéma par module (`schema/questionnaire.ts`, `schema/orga.ts`).
-  - `src/lib/session.ts` : sessions admin (mot de passe partagé) et membre (prénom choisi sur /orga, sans code d'accès).
+  - `src/lib/session.ts` : sessions admin (mot de passe partagé) et membre (prénom choisi une fois sur /qui-es-tu, sans code d'accès, valable pour toute l'app).
   - `src/lib/<module>/` : logique métier testable (fonctions prenant `db`), tests vitest à côté.
-  - `src/components/ui.tsx` : composants d'interface partagés.
+  - `src/components/ui.tsx` : composants d'interface partagés ; `src/components/app-nav.tsx` : navigation des pages membres.
   - `src/app/admin/(protege)/` : pages admin protégées par le layout ; chaque server action revérifie quand même la session.
 - Après une modification du schéma : `npm run db:generate` et commiter `drizzle/`.
 - Vérifications : `npm run typecheck`, `npm run lint`, `npm test`, `npm run build`.

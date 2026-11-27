@@ -209,7 +209,7 @@ export async function loadTopicView(db: DB, topicId: string, participantId: stri
   const [votes, comments] = await Promise.all([
     optionIds.length
       ? db
-          .select({ optionId: optionVotes.optionId, id: participants.id, name: participants.name })
+          .select({ optionId: optionVotes.optionId, id: participants.id, name: participants.name, attending: participants.attending, active: participants.active })
           .from(optionVotes)
           .innerJoin(participants, eq(participants.id, optionVotes.participantId))
           .where(inArray(optionVotes.optionId, optionIds))
@@ -244,7 +244,8 @@ export async function loadTopicView(db: DB, topicId: string, participantId: stri
     canVote: !!participantId && canVote(topic, byId, now),
     canPropose: !!participantId && canPropose(topic, byId, now),
     activeCount,
-    totalVoters: new Set(votes.map((v) => v.id)).size,
+    // Comparé à activeCount (personnes qui viennent) : les votes des proches ne gonflent pas le décompte.
+    totalVoters: new Set(votes.filter((v) => v.attending && v.active).map((v) => v.id)).size,
   };
 }
 

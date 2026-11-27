@@ -5,7 +5,7 @@ import { Badge, Button, Card, Hero, Input, LinkButton, Shell } from "@/component
 import { requireAdminPage } from "@/lib/orga/auth";
 import { listParticipants } from "@/lib/orga/participants";
 import { ActionForm, ConfirmButton, CopyButton, SubmitButton } from "@/app/orga/_components/forms";
-import { addParticipantAction, removeParticipantAction, renameParticipantAction, restoreParticipantAction } from "./actions";
+import { addParticipantAction, removeParticipantAction, renameParticipantAction, restoreParticipantAction, setAttendingAction } from "./actions";
 
 export const metadata: Metadata = { title: "Participants" };
 
@@ -22,31 +22,35 @@ export default async function Participants() {
   const people = await listParticipants(await getDb(), { includeInactive: true });
   const active = people.filter((p) => p.active);
   const removed = people.filter((p) => !p.active);
-  const path = "/orga";
+  const attending = active.filter((p) => p.attending);
+  const relatives = active.length - attending.length;
+  const path = "/";
   const link = `${await origin()}${path}`;
 
   return (
     <Shell>
       <Hero kicker="Espace organisateurs" title="Participants">
-        {active.length} participant{active.length > 1 ? "s" : ""} : c’est sur ce nombre qu’est calculé le prix par personne.
+        {attending.length} participant{attending.length > 1 ? "s" : ""} au week-end : c’est sur ce nombre qu’est calculé le prix par personne.
+        {relatives > 0 && ` Plus ${relatives} proche${relatives > 1 ? "s" : ""} (famille, copine…) qui voi${relatives > 1 ? "ent" : "t"} tout mais ne compte${relatives > 1 ? "nt" : ""} pas.`}
       </Hero>
 
       <Card className="space-y-3">
         <h2 className="text-xl">🔗 Lien du groupe</h2>
         <p className="text-sm text-muted">
-          À partager dans le groupe WhatsApp des participants, <strong>jamais à Valentin</strong>. Au premier passage, chacun entre son prénom (il s’ajoute à la liste ci-dessous) ; ensuite le téléphone s’en souvient. Vous pouvez aussi ajouter des prénoms à l’avance.
+          À partager dans le groupe WhatsApp des participants, <strong>jamais à Valentin</strong>. Au premier passage, chacun entre son prénom et dit s’il vient au week-end (il s’ajoute à la liste ci-dessous) ; ensuite le téléphone s’en souvient. Le même prénom sert pour le questionnaire, l’orga et les idées. L’ancien lien /questionnaire marche toujours (identification d’abord). Vous pouvez aussi ajouter des prénoms à l’avance.
         </p>
         <p className="break-all rounded-xl bg-paper px-3.5 py-2.5 font-mono text-sm">{link}</p>
         <div className="flex flex-wrap gap-2">
           <CopyButton text={link} />
           <LinkButton href={path} prefetch={false} variant="ghost">
-            Entrer dans l’espace membres →
+            Ouvrir l’app des membres →
           </LinkButton>
         </div>
       </Card>
 
       <Card className="space-y-4">
         <h2 className="text-xl">Liste des prénoms</h2>
+        <p className="text-sm text-muted">Touche le statut (« Vient au week-end » / « Proche ») pour le changer.</p>
         <ActionForm action={addParticipantAction} resetOnSuccess className="space-y-1">
             <div className="flex gap-2">
               <Input name="name" required maxLength={40} placeholder="Prénom à ajouter" aria-label="Prénom" autoComplete="off" />
@@ -67,6 +71,17 @@ export default async function Participants() {
                       Renommer
                     </SubmitButton>
                   </div>
+              </ActionForm>
+              <ActionForm action={setAttendingAction}>
+                <input type="hidden" name="participantId" value={p.id} />
+                <input type="hidden" name="attending" value={p.attending ? "non" : "oui"} />
+                <SubmitButton
+                  variant="ghost"
+                  className="py-2"
+                  title={p.attending ? "Passer en proche (ne compte plus dans le prix par personne)" : "Passer en participant au week-end"}
+                >
+                  {p.attending ? <Badge tone="ok">Vient au week-end</Badge> : <Badge>Proche</Badge>}
+                </SubmitButton>
               </ActionForm>
               <ActionForm action={removeParticipantAction}>
                 <input type="hidden" name="participantId" value={p.id} />

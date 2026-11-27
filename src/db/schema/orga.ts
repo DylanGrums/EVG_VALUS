@@ -1,7 +1,8 @@
 /**
  * Schéma du module « organisation de l'EVG ».
  *
- * - participants        : prénoms du groupe (retrait doux via `active`).
+ * - participants        : prénoms du groupe (retrait doux via `active`) ; `attending` = vient au week-end
+ *                         (sinon « proche » : famille, compagne… qui voit tout mais ne compte pas dans le prix par personne).
  * - decision_topics     : sujets de décision (destination, logement, activités, transport, autre).
  * - topic_options       : propositions d'un sujet (lien, prix, adresse, horaires…), `selected` = retenue.
  * - option_votes        : un vote par participant et par option.
@@ -33,6 +34,8 @@ export const participants = pgTable("participants", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
   active: boolean("active").notNull().default(true),
+  /** Fait partie du week-end (compte dans le prix par personne et le décompte des participants). */
+  attending: boolean("attending").notNull().default(true),
   createdAt: createdAt(),
 });
 

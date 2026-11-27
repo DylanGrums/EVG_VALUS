@@ -63,16 +63,42 @@ La date (mai 2027) est déjà connue : pas de sondage de dates prévu.
 
 ## Accès et rôles
 
-- **Participants** : lien `/orga` partagé dans le groupe, sans code d'accès (décidé le 2026-11-26 : Valentin n'aura pas le lien). Au premier passage, chacun **entre son prénom**
+- **Participants** : lien partagé dans le groupe, sans code d'accès (décidé le 2026-11-26 : Valentin n'aura pas le lien). Au premier passage, chacun **entre son prénom**
   (il s'ajoute à la liste ; un prénom déjà pris est refusé avec renvoi vers la liste). Sinon, bouton
   « J'ai déjà renseigné mon prénom » → choix dans la liste. Le prénom est mémorisé (cookie signé + localStorage) :
   au retour, la personne est reconnue automatiquement. Les admins peuvent aussi ajouter/renommer/retirer des prénoms.
   Pas de mot de passe individuel.
 - **Organisateurs** (moi + co-orgas) : accès admin protégé (gestion des sujets, clôture des votes,
   validation, gestion du questionnaire).
-- **Répondants au questionnaire** : lien `/questionnaire`, ouvert, sans liste.
+- **Répondants au questionnaire** : depuis le 2026-11-27, ils s'identifient comme tout le monde (voir ci-dessous).
 - **Valentin** : aucun accès (voir règle d'or).
 - Le site ne doit pas être indexé (noindex).
+
+## Un seul prénom pour toute l'app (décidé le 2026-11-27)
+
+Le questionnaire a déjà été envoyé et des réponses réelles sont en base : tout est additif (migration `0001_identite`).
+
+- **Identification unique** (`/qui-es-tu`, cookie signé `evg_member` + localStorage) : le prénom sert au questionnaire, à l'orga,
+  aux idées et aux résultats. À l'inscription : « Tu fais partie du week-end ? » → oui = participant, non = **proche**
+  (famille, copine…). `participants.attending` ; seuls les participants qui viennent comptent dans le prix par personne et
+  le décompte « x / y ont voté ». Les proches voient tout comme les participants. Les admins changent le statut (/admin/participants).
+- **Parcours** : `/` = accueil (sans prénom → identification). Après l'inscription : « Répondre au questionnaire » / « Passer »
+  (`/bienvenue`). Questionnaire envoyé → retour automatique à l'accueil. L'ancien lien `/questionnaire` passe par
+  l'identification puis revient au questionnaire.
+- **Questionnaire ↔ prénom** : `questionnaire_participations.participant_id` (nullable). Un membre identifié répond sous
+  son prénom de la liste (imposé côté serveur, non ressaisi) et sa participation lui est rattachée. Le jeton de reprise du
+  navigateur (cookie httpOnly) non rattaché est rattaché automatiquement au membre : un brouillon toujours, une réponse déjà
+  envoyée seulement si le prénom correspond (garde-fou pour un téléphone partagé). Un jeton rattaché à quelqu'un d'autre est
+  ignoré. Un membre qui a déjà envoyé ne peut pas renvoyer un second questionnaire. Un brouillon n'est jamais repris via le
+  prénom seul (sinon choisir le prénom d'un autre exposerait ses réponses). Les admins lient/délient une réponse à la main
+  (fiche réponse) et peuvent supprimer une réponse depuis la liste (doublons).
+- **Tendances publiques** (`/resultats` et accueil, `src/lib/questionnaire/public-view.ts`) : agrégats anonymes et **non
+  pondérés** (nombre de réponses, top choix par question, consensus, désaccords, « non » et limites). Jamais de prénom,
+  de commentaire libre, de vue par répondant ni de niveau de connaissance. Rien sous 3 réponses envoyées ; brouillons,
+  exclues et supprimées hors compte. Promesse au répondant : « Seul l'organisateur peut lire tes réponses ; le groupe ne
+  voit que des tendances anonymes ». Pondération, filtres et détail par répondant restent dans l'admin.
+- **Navigation** commune aux pages membres (`src/components/app-nav.tsx`) : Accueil, Résultats, Orga, Idées, Sur place,
+  puce du prénom (changer), lien Admin pour un organisateur connecté ; l'admin a un lien « ← L'app ».
 
 ## Choix techniques (décidés le 2026-11-25)
 

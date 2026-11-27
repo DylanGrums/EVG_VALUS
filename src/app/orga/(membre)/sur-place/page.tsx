@@ -12,7 +12,7 @@ export const metadata: Metadata = { title: "Sur place" };
 
 /** Carnet de voyage (phase B) : uniquement ce qui a été retenu, lisible vite sur téléphone. */
 export default async function SurPlace() {
-  await requireMemberPage();
+  await requireMemberPage("/orga/sur-place");
   const carnet = await loadCarnet(await getDb());
   const destination = carnet.destinations.map((d) => d.title).join(" + ");
 

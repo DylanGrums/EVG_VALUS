@@ -22,3 +22,8 @@
   h1, h2, h3 { letter-spacing: -0.03em; line-height: 1.15; text-wrap: balance; font-weight: 750; }
   :focus-visible { outline: 3px solid var(--color-brand); outline-offset: 2px; }
 }
+
+/* Barre d'onglets fixée en bas sur mobile (src/components/app-nav-bar.tsx) : on réserve sa place en bas de page. */
+@media (width < 40rem) {
+  body:has([data-app-nav]) { padding-bottom: calc(4rem + env(safe-area-inset-bottom)); }
+}

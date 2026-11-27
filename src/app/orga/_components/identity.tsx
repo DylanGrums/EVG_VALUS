@@ -1,8 +1,9 @@
 "use client";
 
 /**
- * Identification des membres par prénom.
- * - Premier passage : la personne entre son prénom (inscription).
+ * Identification des membres par prénom (une seule fois pour toute l'app : questionnaire, orga, idées, résultats).
+ * - Premier passage : la personne entre son prénom et dit si elle fait partie du week-end (inscription),
+ *   puis choisit « répondre au questionnaire » ou « passer » (/bienvenue), sauf si elle venait du questionnaire.
  * - Prénom déjà pris : fenêtre « C'est toi ? » → reprendre (questionnaire ou orga) ou ajouter une initiale.
  * - « J'ai déjà renseigné mon prénom » : elle le choisit dans la liste.
  * - Le prénom choisi est mémorisé dans le localStorage : au retour (cookie perdu, autre navigateur
@@ -14,6 +15,7 @@ import { Button, Field, Input, cx } from "@/components/ui";
 import { chooseParticipantAction, registerAction, restoreParticipantAction, type IdentityState } from "../actions";
 
 const STORAGE_KEY = "evg-participant";
+const choiceClass = "flex cursor-pointer items-start gap-3 rounded-xl border border-line bg-panel p-3.5 has-[:checked]:border-brand has-[:checked]:bg-brand-light";
 type Person = { id: string; name: string };
 
 function readRemembered(): Person | null {
@@ -39,17 +41,30 @@ export function RememberMe({ id, name }: Person) {
   return null;
 }
 
-export function IdentityPicker({ people, currentId, autoRestore }: { people: Person[]; currentId?: string; autoRestore: boolean }) {
+export function IdentityPicker({
+  people,
+  currentId,
+  autoRestore,
+  next = "/",
+}: {
+  people: Person[];
+  currentId?: string;
+  autoRestore: boolean;
+  /** Où aller une fois le prénom choisi (chemin interne déjà validé). */
+  next?: string;
+}) {
   const router = useRouter();
   const [mode, setMode] = useState<"nouveau" | "liste">(currentId ? "liste" : "nouveau");
   const [restoring, setRestoring] = useState<string | null>(null);
   const [conflict, setConflict] = useState<Person | null>(null);
   const [name, setName] = useState("");
+  // Contrôlé : React vide les champs non contrôlés après l'action (ex. prénom déjà pris).
+  const [attending, setAttending] = useState<"oui" | "non" | "">("");
   const [resuming, setResuming] = useState(false);
   const nameInput = useRef<HTMLInputElement>(null);
   const tried = useRef(false);
 
-  function finish(state: IdentityState, target = "/orga") {
+  function finish(state: IdentityState, target = next) {
     if (state?.ok) {
       remember(state.participant);
       router.replace(target);
@@ -62,7 +77,8 @@ export function IdentityPicker({ people, currentId, autoRestore }: { people: Per
     async (prev: IdentityState, form: FormData) => {
       const state = await registerAction(prev, form);
       if (state && !state.ok && state.taken) setConflict(state.taken);
-      return finish(state, "/orga/bienvenue");
+      // Venu pour le questionnaire (ancien lien) : on y retourne directement ; sinon écran « répondre ou passer ».
+      return finish(state, next === "/" ? "/bienvenue" : next);
     },
     undefined,
   );
@@ -87,7 +103,7 @@ export function IdentityPicker({ people, currentId, autoRestore }: { people: Per
   }, [autoRestore, people]);
 
   /** « C'est moi » : on reprend la fiche existante, puis questionnaire ou orga. */
-  async function resumeAs(target: "/questionnaire" | "/orga") {
+  async function resumeAs(target: "/questionnaire" | "/") {
     if (!conflict) return;
     setResuming(true);
     const state = await restoreParticipantAction(conflict.id);
@@ -137,7 +153,7 @@ export function IdentityPicker({ people, currentId, autoRestore }: { people: Per
 
       {mode === "nouveau" ? (
         <form action={register} className="space-y-3">
-          <Field label="Ton prénom" hint="Il apparaîtra sur tes votes et tes commentaires.">
+          <Field label="Ton prénom" hint="Il apparaîtra sur tes votes et tes commentaires, et servira pour le questionnaire.">
             <Input
               ref={nameInput}
               name="name"
@@ -150,6 +166,25 @@ export function IdentityPicker({ people, currentId, autoRestore }: { people: Per
               onChange={(e) => setName(e.target.value)}
             />
           </Field>
+          <fieldset className="space-y-2">
+            <legend className="text-sm font-semibold">Tu fais partie du week-end ?</legend>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <label className={choiceClass}>
+                <input type="radio" name="attending" value="oui" required checked={attending === "oui"} onChange={() => setAttending("oui")} className="mt-0.5 size-5 accent-brand" />
+                <span>
+                  <span className="block font-semibold">Oui, je viens</span>
+                  <span className="text-sm text-muted">Je pars en week-end avec Val.</span>
+                </span>
+              </label>
+              <label className={choiceClass}>
+                <input type="radio" name="attending" value="non" required checked={attending === "non"} onChange={() => setAttending("non")} className="mt-0.5 size-5 accent-brand" />
+                <span>
+                  <span className="block font-semibold">Non, je suis un proche</span>
+                  <span className="text-sm text-muted">Famille, copine, ami qui ne vient pas…</span>
+                </span>
+              </label>
+            </div>
+          </fieldset>
           {registerState && !registerState.ok && (
             <div className="space-y-2 text-sm text-danger">
               {registerState.taken ? (
@@ -220,7 +255,7 @@ function NameTakenDialog({
 }: {
   name: string;
   busy: boolean;
-  onResume: (target: "/questionnaire" | "/orga") => void;
+  onResume: (target: "/questionnaire" | "/") => void;
   onAddInitial: () => void;
   onClose: () => void;
 }) {
@@ -252,8 +287,8 @@ function NameTakenDialog({
             <Button type="button" disabled={busy} onClick={() => onResume("/questionnaire")}>
               📝 Reprendre le questionnaire
             </Button>
-            <Button type="button" variant="secondary" disabled={busy} onClick={() => onResume("/orga")}>
-              🗳️ Aller sur l’orga
+            <Button type="button" variant="secondary" disabled={busy} onClick={() => onResume("/")}>
+              🏠 Aller à l’accueil
             </Button>
           </div>
         </div>

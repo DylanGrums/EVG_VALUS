@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     "legacy/**",
     ".data/**",
+    // Worktrees des agents (autres branches en cours) : pas le code de ce dossier.
+    ".claude/**",
   ]),
 ]);
 

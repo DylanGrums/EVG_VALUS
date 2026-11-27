@@ -5,12 +5,11 @@ import { revalidatePath } from "next/cache";
 import { getDb } from "@/db";
 import { requireAdmin } from "@/lib/orga/auth";
 import { OrgaError, type ActionState } from "@/lib/orga/errors";
-import { addParticipant, removeParticipant, renameParticipant, restoreParticipant } from "@/lib/orga/participants";
+import { addParticipant, removeParticipant, renameParticipant, restoreParticipant, setParticipantAttending } from "@/lib/orga/participants";
 import { isUuid } from "@/lib/orga/validation";
 
 function refresh() {
-  revalidatePath("/admin", "layout");
-  revalidatePath("/orga", "layout");
+  revalidatePath("/", "layout");
 }
 
 function idFrom(form: FormData) {
@@ -54,5 +53,14 @@ export async function removeParticipantAction(_: ActionState, form: FormData): P
 export async function restoreParticipantAction(_: ActionState, form: FormData): Promise<ActionState> {
   return run(async () => {
     await restoreParticipant(await getDb(), idFrom(form));
+  });
+}
+
+/** Vient au week-end (participant) ou proche : seul le premier compte dans le prix par personne. */
+export async function setAttendingAction(_: ActionState, form: FormData): Promise<ActionState> {
+  return run(async () => {
+    const attending = form.get("attending");
+    if (attending !== "oui" && attending !== "non") throw new OrgaError("Statut invalide.");
+    await setParticipantAttending(await getDb(), idFrom(form), attending === "oui");
   });
 }

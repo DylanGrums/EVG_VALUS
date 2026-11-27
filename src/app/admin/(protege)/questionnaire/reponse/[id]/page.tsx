@@ -9,7 +9,8 @@ import { formatDate } from "@/lib/questionnaire/format";
 import { getResponse, listVersions } from "@/lib/questionnaire/store";
 import { themes, weightOf } from "@/lib/questionnaire/types";
 import { LevelBadge } from "../../_components/analysis-view";
-import { KnowledgeSelect, ParticipationActions } from "../../_components/client-bits";
+import { KnowledgeSelect, OwnerSelect, ParticipationActions } from "../../_components/client-bits";
+import { listParticipants } from "@/lib/orga/participants";
 
 export const metadata = { title: "Réponse individuelle" };
 
@@ -18,7 +19,7 @@ export default async function ResponsePage({ params }: PageProps<"/admin/questio
   const { id } = await params;
   if (!/^[a-f0-9]{64}$/.test(id)) notFound();
   const db = await getDb();
-  const [entry, versions] = await Promise.all([getResponse(db, id), listVersions(db)]);
+  const [entry, versions, people] = await Promise.all([getResponse(db, id), listVersions(db), listParticipants(db, { includeInactive: true })]);
   if (!entry) notFound();
   const definition = versions.find((v) => v.version === entry.version);
   const status = statusOf(entry);
@@ -47,6 +48,14 @@ export default async function ResponsePage({ params }: PageProps<"/admin/questio
         ) : (
           <p className="text-sm text-muted">Le niveau pourra être renseigné quand la réponse sera terminée.</p>
         )}
+        <div className="space-y-1">
+          <p className="text-sm font-semibold">Prénom rattaché</p>
+          <OwnerSelect id={entry.id} value={entry.participantId ?? null} people={people.map((p) => ({ id: p.id, name: p.name, active: p.active }))} />
+          <p className="text-xs text-muted">
+            Relie cette réponse au prénom de la personne dans la liste du groupe : son accueil la considérera comme envoyée. Le prénom
+            saisi dans la réponse ne change pas.
+          </p>
+        </div>
         <ParticipationActions id={entry.id} name={entry.name} excluded={entry.excluded} onDeleteRedirect />
       </Card>
 
