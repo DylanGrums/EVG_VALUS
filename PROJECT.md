@@ -49,6 +49,23 @@ Ce que voient les membres : un sujet en *brouillon* leur est invisible ; un suje
 décidée apparaît « à venir » (verrouillé) ; un sujet *clos* est visible mais les votes sont figés.
 Les dates limites sont comparées à l'heure de Paris (`ORGA_TIMEZONE` dans `src/lib/orga/rules.ts`).
 
+### Page Idées — en amont de l'orga (décidé le 2026-11-27)
+
+Avant d'ouvrir les sujets Destination / Activités, une page **Idées** (`/idees`, mêmes accès que `/orga`) rassemble
+des villes et, pour chacune, des événements/activités de mai 2027 qui collent au profil de Val.
+
+- **Alimentation par import JSON (admin)** : les orgas téléchargent une synthèse Markdown du questionnaire
+  (`/admin/idees/recherche` : pourcentages pondérés et bruts, commentaires anonymisés, limites, critères), la donnent
+  avec le prompt fourni à un outil de recherche approfondie (IA), puis importent le JSON renvoyé (`/admin/idees/import`,
+  format dans `docs/import-idees.md`). L'import est idempotent : ville = nom + pays normalisés, événement = ville + nom ;
+  un réimport met à jour sans dupliquer ni toucher aux votes/commentaires.
+- **Votes multiples** : un 👍 par personne et par ville / par événement, on peut soutenir autant d'idées qu'on veut.
+  Les prénoms des votants sont visibles.
+- **Tout le monde peut proposer** une ville ou un événement (marqué « proposé par X ») et commenter.
+- Les orgas peuvent masquer, modifier, supprimer, et **retenir** une ville (affichée en tête avec un badge).
+  Le branchement d'une ville retenue vers les sujets Destination / Activités viendra plus tard.
+- La synthèse Markdown contient la pondération : réservée aux admins, ne pas la partager avec le groupe.
+
 ### Phase B — Sur place
 
 Vue « carnet de voyage » simple, pensée mobile, qui ne montre **que ce qui a été retenu** :

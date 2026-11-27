@@ -12,6 +12,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
     <>
       <SiteHeader href="/admin">
         <Link className={link} href="/admin/questionnaire">Questionnaire</Link>
+        <Link className={link} href="/admin/idees">Idées</Link>
         <Link className={link} href="/admin/orga">Orga</Link>
         <Link className={link} href="/admin/participants">Participants</Link>
         <form action={logout}>

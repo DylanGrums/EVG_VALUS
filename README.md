@@ -10,7 +10,11 @@ Stack : Next.js 16 (App Router, TypeScript), Tailwind v4, Drizzle ORM, Postgres 
 | --- | --- |
 | `/questionnaire` | Questionnaire « profil de Val » : lien direct à envoyer aux proches (`/` y redirige) |
 | `/orga` | Espace des participants, à partager uniquement dans leur groupe. Premier passage : prénom, puis « répondre au questionnaire » ou « passer ». Votes, propositions, commentaires, carnet sur place |
+| `/idees` | Idées de villes et d'événements (membres identifiés, comme `/orga`) : 👍 multiples, commentaires, propositions. `/idees/<id>` : détail d'une ville |
 | `/admin` | Espace organisateurs (mot de passe `ADMIN_PASSWORD`) |
+| `/admin/idees` | Gestion des idées : retenir, masquer, modifier, supprimer |
+| `/admin/idees/recherche` | Synthèse Markdown du questionnaire (`/admin/idees/recherche/synthese`) et prompt de recherche approfondie à copier |
+| `/admin/idees/import` | Import du JSON de la recherche (format : [docs/import-idees.md](docs/import-idees.md)) |
 
 L'orga n'a pas de code d'accès : ne jamais envoyer le lien `/orga` à quelqu'un qui pourrait le montrer à Valentin. Les anciens liens `/rejoindre/...` redirigent vers `/orga`.
 
