@@ -209,6 +209,31 @@ describe("vue publique anonyme", () => {
     for (const r of data.responses) expect(json).not.toContain(r.id);
   });
 
+  test("question positive (Q6 « à l'aise ») jamais en vigilance ; doutes par question et par activité", async () => {
+    for (let i = 0; i < 4; i++) {
+      const draft = complete(`P${i}`);
+      draft.answers["6"] = { choices: ["c1"], comment: "" };
+      draft.answers["5"] = { choices: i < 2 ? ["0-4", "1-1"] : ["0-0", "1-0"], comment: "" };
+      draft.answers["16"] = { choices: ["c1"], comment: "" };
+      await saveParticipation(db, id(), { draft, revision: 0, submit: true });
+    }
+    const trends = publicTrends(await loadAdminData(db));
+    if (trends.status !== "ready") throw new Error("attendu : ready");
+    const q6 = v1.questions.find((q) => q.id === 6)!;
+    const q16 = v1.questions.find((q) => q.id === 16)!;
+    expect(trends.limits.some((h) => h.label === q6.options.c1)).toBe(false);
+    // Q16 « risques » reste bien une vigilance.
+    expect(trends.limits.some((h) => h.label === q16.options.c1)).toBe(true);
+    // Matrice : 2/4 « je ne sais pas » sur la 1re activité, 2/4 « ça dépend » sur la 2e.
+    const rows = trends.doubts.filter((d) => d.question === v1.questions.find((q) => q.id === 5)!.title);
+    expect(rows).toHaveLength(2);
+    expect(rows.every((d) => d.share === 0.5 && !d.label.includes("·"))).toBe(true);
+    expect(new Set(rows.map((d) => d.detail))).toEqual(new Set(["2 « ça dépend »", "2 « je ne sais pas »"]));
+    // Questions où tout le monde a dit « Je ne sais pas » : en tête, à 100 %.
+    expect(trends.doubts[0]).toMatchObject({ share: 1, detail: "4 « je ne sais pas »" });
+    expect(trends.doubts.some((d) => d.label === q6.title)).toBe(false);
+  });
+
   test("la fonction ne modifie pas les données d'entrée", async () => {
     await seed(3);
     const data = await loadAdminData(db);

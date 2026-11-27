@@ -9,7 +9,7 @@
 import { analyze, type QuestionResult } from "@/lib/questionnaire/analysis";
 import { matrixLabels } from "@/lib/questionnaire/definition";
 import { formatPercent } from "@/lib/questionnaire/format";
-import { REACTION, reactions, themes, type AdminData } from "@/lib/questionnaire/types";
+import { isVigilanceQuestion, REACTION, reactions, themes, type AdminData } from "@/lib/questionnaire/types";
 import { IMPORT_EXAMPLE } from "./import";
 
 const KEPT_NAMES = new Set(["val", "valentin"]);
@@ -140,7 +140,8 @@ export function buildResearchMarkdown(data: AdminData, { now = new Date(), inclu
       });
     } else {
       const top = r.choices.filter((c) => !c.special && c.count > 0).sort((a, b) => b.weight - a.weight);
-      if (top.length) out.push(`- **${r.question.title}** : ${top.map((c) => `${c.label} (${pct(c.share)}, ${c.count} pers.)`).join(" ; ")}.`);
+      const label = isVigilanceQuestion(r.question) ? r.question.title : `${r.question.title} (où il serait à l’aise : à privilégier)`;
+      if (top.length) out.push(`- **${label}** : ${top.map((c) => `${c.label} (${pct(c.share)}, ${c.count} pers.)`).join(" ; ")}.`);
     }
   }
   const divergences = analysis.byTheme.flatMap((t) => t.divergences.map((d) => d.text));

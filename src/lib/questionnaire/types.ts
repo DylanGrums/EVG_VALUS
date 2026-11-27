@@ -8,6 +8,17 @@ export const themes = {
   surprises: "Surprises et attentions",
 } as const;
 export type ThemeId = keyof typeof themes;
+
+/**
+ * Questions du thème « limites » formulées en POSITIF (où Val serait à l'aise) : leurs réponses sont
+ * des choses à privilégier, pas des points de vigilance. Q6 « Place de Valentin dans le groupe ».
+ */
+const COMFORT_QUESTION_IDS = new Set<number | string>([6]);
+
+/** Vrai si les choix de la question sont des risques ou des refus (et non des situations confortables). */
+export function isVigilanceQuestion(q: { id: number | string; theme: ThemeId; kind?: string }) {
+  return q.theme === "limites" && q.kind !== "matrix" && !COMFORT_QUESTION_IDS.has(q.id);
+}
 export const isTheme = (value: unknown): value is ThemeId => typeof value === "string" && Object.hasOwn(themes, value);
 
 /** Options exclusives communes à toutes les questions à choix. */

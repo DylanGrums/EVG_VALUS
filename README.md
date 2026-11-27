@@ -9,7 +9,7 @@ Stack : Next.js 16 (App Router, TypeScript), Tailwind v4, Drizzle ORM, Postgres 
 | Adresse | Pour qui |
 | --- | --- |
 | `/` | Accueil de l'app : questionnaire à faire ou à reprendre, tendances anonymes du questionnaire, aperçu de l'orga |
-| `/qui-es-tu` | Identification unique (prénom + « tu fais partie du week-end ? ») ; `?suite=/chemin` pour y revenir ensuite |
+| `/qui-es-tu` | Identification unique (prénom ; « vient au week-end » par défaut, les admins marquent les proches) ; `?suite=/chemin` pour y revenir ensuite |
 | `/bienvenue` | Juste après l'inscription : « Répondre au questionnaire » ou « Passer » |
 | `/questionnaire` | Questionnaire « profil de Val » (lien déjà envoyé : sans prénom, identification d'abord puis retour ici ; le brouillon du navigateur est retrouvé) |
 | `/resultats` | Tendances anonymes du questionnaire (à partir de 3 réponses envoyées) |

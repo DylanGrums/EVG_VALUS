@@ -10,7 +10,7 @@
  * Fonction pure : elle ne renvoie que des libellés de questions/choix, des nombres et des pourcentages.
  */
 import { analyze, type QuestionResult } from "./analysis";
-import { REACTION, themes, type QuestionnaireVersion, type ResponseEntry, type ThemeId } from "./types";
+import { isVigilanceQuestion, REACTION, themes, type QuestionnaireVersion, type ResponseEntry, type ThemeId } from "./types";
 
 export const PUBLIC_MIN_RESPONSES = 3;
 
@@ -40,7 +40,14 @@ export type PublicTrends =
       disagreements: PublicDisagreement[];
       /** Les « non » et limites qui ressortent (au moins 2 personnes). */
       limits: PublicHighlight[];
+      /**
+       * Les doutes : là où les proches ne savent pas (« Je ne sais pas ») ou hésitent (matrice : « Ça dépend »),
+       * au moins 25 % des répondants de la question, du plus incertain au moins incertain.
+       */
+      doubts: PublicDoubt[];
     };
+/** `label` : la question (ou l'activité pour la matrice) ; `detail` : ce qui a été répondu. */
+export type PublicDoubt = { question: string; label: string; detail: string; count: number; share: number };
 
 type Input = { versions: QuestionnaireVersion[]; responses: ResponseEntry[] };
 
@@ -93,11 +100,40 @@ export function publicTrends(data: Input, { minResponses = PUBLIC_MIN_RESPONSES 
   const limits = results
     .flatMap((r) => {
       if (r.question.kind === "matrix") return r.signals.filter(refusal).map((key) => highlight(r, key));
-      if (r.question.theme === "limites") return r.signals.slice(0, TOP).map((key) => highlight(r, key));
+      if (isVigilanceQuestion(r.question)) return r.signals.slice(0, TOP).map((key) => highlight(r, key));
       return [];
     })
     .filter((h) => h.count >= 2)
     .sort((a, b) => b.share - a.share || b.count - a.count);
 
-  return { status: "ready", count, questions, consensus, disagreements, limits };
+  const doubts: PublicDoubt[] = results
+    .flatMap((r): PublicDoubt[] => {
+      const share = (n: number) => n / r.answered;
+      if (r.question.kind === "matrix") {
+        // Une ligne par activité : « Je ne sais pas » + « Ça dépend de l'activité ».
+        const rows = new Map<string, { unknown: number; depends: number }>();
+        for (const c of r.choices) {
+          const m = /^(\d+)-(\d+)$/.exec(c.key);
+          if (!m || c.count === 0) continue;
+          const reaction = Number(m[2]);
+          if (reaction !== REACTION.inconnu && reaction !== REACTION.depend) continue;
+          const row = rows.get(m[1]) ?? { unknown: 0, depends: 0 };
+          if (reaction === REACTION.inconnu) row.unknown += c.count;
+          else row.depends += c.count;
+          rows.set(m[1], row);
+        }
+        return [...rows.entries()].map(([row, { unknown, depends }]) => {
+          const label = (r.labels[`${row}-${REACTION.partant}`] ?? "").split(" · ")[0];
+          const parts = [unknown && `${unknown} « je ne sais pas »`, depends && `${depends} « ça dépend »`].filter(Boolean);
+          return { question: r.question.title, label, detail: parts.join(", "), count: unknown + depends, share: share(unknown + depends) };
+        });
+      }
+      const unknown = r.choices.find((c) => c.key === "unknown")?.count ?? 0;
+      if (!unknown) return [];
+      return [{ question: themes[r.question.theme], label: r.question.title, detail: `${unknown} « je ne sais pas »`, count: unknown, share: share(unknown) }];
+    })
+    .filter((d) => d.share >= 0.25)
+    .sort((a, b) => b.share - a.share || b.count - a.count);
+
+  return { status: "ready", count, questions, consensus, disagreements, limits, doubts };
 }

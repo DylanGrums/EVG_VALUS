@@ -6,7 +6,7 @@
 import Link from "next/link";
 import { Badge, Card } from "@/components/ui";
 import { formatPercent } from "@/lib/questionnaire/format";
-import type { PublicChoice, PublicHighlight, PublicTrends } from "@/lib/questionnaire/public-view";
+import type { PublicChoice, PublicDoubt, PublicHighlight, PublicTrends } from "@/lib/questionnaire/public-view";
 
 function Bar({ share }: { share: number }) {
   return (
@@ -74,6 +74,16 @@ export function TrendsSummary({ trends }: { trends: PublicTrends }) {
               </ul>
             </div>
           )}
+          {trends.doubts.length > 0 && (
+            <div className="space-y-2">
+              <h3 className="text-sm font-extrabold uppercase tracking-widest text-muted">Là où on doute</h3>
+              <ul className="space-y-3">
+                {trends.doubts.slice(0, 3).map((d, i) => (
+                  <DoubtLine key={i} doubt={d} />
+                ))}
+              </ul>
+            </div>
+          )}
           <Link href="/resultats" className="inline-block text-sm font-semibold text-brand underline">
             Voir toutes les tendances →
           </Link>
@@ -117,6 +127,22 @@ export function TrendsFull({ trends }: { trends: Extract<PublicTrends, { status:
         </Card>
       </div>
 
+      <Card className="space-y-3">
+        <h2 className="text-xl">🤔 Là où on doute</h2>
+        <p className="text-sm text-muted">
+          Les sujets où au moins un quart des proches ont répondu « je ne sais pas » (ou « ça dépend » pour les activités) : à creuser avant de trancher.
+        </p>
+        {trends.doubts.length ? (
+          <ul className="space-y-3">
+            {trends.doubts.map((d, i) => (
+              <DoubtLine key={i} doubt={d} />
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-muted">Pas de doute marqué pour l’instant.</p>
+        )}
+      </Card>
+
       {trends.disagreements.length > 0 && (
         <Card className="space-y-3">
           <h2 className="text-xl">⚖️ Points de désaccord</h2>
@@ -159,5 +185,22 @@ export function TrendsFull({ trends }: { trends: Extract<PublicTrends, { status:
         </Card>
       ))}
     </>
+  );
+}
+
+function DoubtLine({ doubt }: { doubt: PublicDoubt }) {
+  return (
+    <li className="space-y-1">
+      <div className="flex items-baseline justify-between gap-3 text-sm">
+        <span className="font-semibold">{doubt.label}</span>
+        <span className="shrink-0 text-muted">{Math.round(doubt.share * 100)} %</span>
+      </div>
+      <div className="h-2 overflow-hidden rounded-full bg-paper">
+        <div className="h-full rounded-full bg-muted/50" style={{ width: `${Math.round(doubt.share * 100)}%` }} />
+      </div>
+      <p className="text-xs text-muted">
+        {doubt.question} · {doubt.detail}
+      </p>
+    </li>
   );
 }

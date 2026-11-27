@@ -96,8 +96,8 @@ La date (mai 2027) est déjà connue : pas de sondage de dates prévu.
 Le questionnaire a déjà été envoyé et des réponses réelles sont en base : tout est additif (migration `0001_identite`).
 
 - **Identification unique** (`/qui-es-tu`, cookie signé `evg_member` + localStorage) : le prénom sert au questionnaire, à l'orga,
-  aux idées et aux résultats. À l'inscription : « Tu fais partie du week-end ? » → oui = participant, non = **proche**
-  (famille, copine…). `participants.attending` ; seuls les participants qui viennent comptent dans le prix par personne et
+  aux idées et aux résultats. Tout inscrit « vient au week-end » par défaut ; seuls les admins passent quelqu'un en **proche**
+  (famille, copine…), décidé le 2026-11-27 : on ne le demande pas à l'inscription. `participants.attending` ; seuls les participants qui viennent comptent dans le prix par personne et
   le décompte « x / y ont voté ». Les proches voient tout comme les participants. Les admins changent le statut (/admin/participants).
 - **Parcours** : `/` = accueil (sans prénom → identification). Après l'inscription : « Répondre au questionnaire » / « Passer »
   (`/bienvenue`). Questionnaire envoyé → retour automatique à l'accueil. L'ancien lien `/questionnaire` passe par

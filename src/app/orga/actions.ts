@@ -48,13 +48,11 @@ export async function restoreParticipantAction(participantId: string): Promise<I
 
 /**
  * Premier passage : la personne entre son prénom, on l'ajoute à la liste du groupe.
- * « Tu fais partie du week-end ? » : oui = participant (compte dans le prix par personne), non = proche.
+ * Tout le monde est « vient au week-end » par défaut : les admins passent les proches en « ne vient pas » (Admin → Participants).
  */
 export async function registerAction(_: IdentityState, form: FormData): Promise<IdentityState> {
-  const attending = form.get("attending");
-  if (attending !== "oui" && attending !== "non") return { error: "Dis-nous si tu fais partie du week-end." };
   try {
-    const participant = await registerSelf(await getDb(), String(form.get("name") ?? ""), { attending: attending === "oui" });
+    const participant = await registerSelf(await getDb(), String(form.get("name") ?? ""));
     await setMember(participant.id);
     refresh();
     return { ok: true, participant: { id: participant.id, name: participant.name } };
